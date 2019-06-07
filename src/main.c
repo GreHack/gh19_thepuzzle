@@ -2,6 +2,9 @@
 #include "dbg.h"
 #include <stdio.h>
 
+/*
+ * This is the debuggee, our child process.
+ */
 void child(int father_pid)
 {
 	int c;
@@ -20,6 +23,11 @@ void child(int father_pid)
 	}
 }
 
+/*
+ * This is our debugger, the "father" program.
+ * Because of yama hardening, the father *must* be our debugger.
+ * Check /proc/sys/kernel/yama/ptrace_scope
+ */
 void father(int child_pid)
 {
 	int stat_loc;

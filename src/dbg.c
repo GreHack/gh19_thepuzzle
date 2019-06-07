@@ -18,6 +18,11 @@ static uint64_t baddr;
 	exit(-1); \
 	}
 
+/*
+ * Fetch our program base address.
+ * This works when called from the father, because using fork *without calling execve*
+ * will not change the program base address (PIE/ASLR).
+ */
 static void dbg_fetch_base_addr()
 {
 	int fd;
@@ -41,11 +46,12 @@ static void dbg_fetch_base_addr()
 	}
 
 	// Convert it to what we want
-	long long val = strtoull(buf, NULL, 16);
-
-	baddr = val;
+	baddr = strtoull(buf, NULL, 16);
 }
 
+/*
+ * Attach to a process. Assumes the binary is PIE..
+ */
 void dbg_attach(int pid)
 {
 	// Note: PTRACE_ATTACH will send a SIGSTOP to the child
@@ -60,6 +66,11 @@ void dbg_attach(int pid)
 	dbg_fetch_base_addr();
 }
 
+/*
+ * Add a breakpoint to the specified address.
+ * We are in the context of PIE, so the given relative address will be rebased
+ * on top of the program base address.
+ */
 long dbg_break(void *addr)
 {
 	// Because of PIE, we add the base address to the target addr
@@ -71,10 +82,12 @@ long dbg_break(void *addr)
 		dbg_die("Cannot peek");
 	}
 
-	// Add a int3 instruction
+	// Add a int3 instruction (0xcc *is* the INT3 instruction)
 	trap = (trap & 0xffffffffffffff00) | 0xcc;
 
 	// Write the instruction back
+	// TODO We will probably want to save the old instruction
+	// if we want to remove the breakpoint in the future
 	return ptrace(PTRACE_POKETEXT, mpid, addr, trap);
 }
 
