@@ -2,6 +2,11 @@
 #include "dbg.h"
 #include <stdio.h>
 
+// Our breakpoints locations
+// TODO Find a way to automate this?
+// 0x00001547      488d3dbd0b00.  lea rdi, str.Sleeping_forever
+#define BP_CHILD_01 0x1547
+
 /*
  * This is the debuggee, our child process.
  */
@@ -14,7 +19,6 @@ void child(int father_pid)
 		sleep(1);
 	}
 
-	// 0x000014a1      8b45ec         mov eax, dword [rbp - 0x14]
 	c = father_pid / 2;
 
 	for (;;) {
@@ -30,24 +34,27 @@ void child(int father_pid)
  */
 void father(int child_pid)
 {
-	int stat_loc;
+	int status;
 	long err;
 
 	// Attach to our child
 	dbg_attach(child_pid);
 
 	// Add a breakpoint
-	dbg_break((void *) 0x14a1);
+	dbg_break((void *) BP_CHILD_01);
 
-	// Wait to catch our breakpoint
-	// TODO Fix those waitpid
-	waitpid(child_pid, &stat_loc, 0);
+	// Wait to catch the first SIGSTOP sent by dbg_attach
+	waitpid(child_pid, &status, 0);
 
-	printf("Wait (1) ok.\n");
+	// Tell the process to continue
+	dbg_continue();
 
 	// Wait that the process is dead
-	// waitpid(child_pid, &stat_loc, 0);
-	printf("Wait (X) ok. Exiting.\n");
+	printf("Waiting...\n");
+	waitpid(child_pid, &status, 0);
+	printf("Wait ok. Exiting.\n");
+	// TODO Check waitpid status and don't exit when the child reached
+	// a breakpoint (add some main loop)
 }
 
 int main(int argc)

@@ -6,4 +6,5 @@
 
 void dbg_attach(int pid);
 long dbg_break(void *addr);
+void dbg_continue();
 
