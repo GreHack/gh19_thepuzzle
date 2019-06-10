@@ -1,0 +1,1 @@
+gcc -o main -I./src src/*.c src/packed/*.c && python ./script/2pac.py main
