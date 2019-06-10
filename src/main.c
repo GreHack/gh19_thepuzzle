@@ -1,5 +1,6 @@
 #include "core.h"
 #include "dbg.h"
+#include "unpack.h"
 #include "packed/hello.h"
 #include <stdio.h>
 #include <string.h>
@@ -7,26 +8,20 @@
 // Our breakpoints locations
 // TODO Find a way to automate this?
 // 0x00001547      488d3dbd0b00.  lea rdi, str.Sleeping_forever
-#define BP_CHILD_01 0x1547
+// 0f5e is the entry point of the function check_flag
+#define BP_CHILD_01 0x1512
 
 /*
  * This is the debuggee, our child process.
  */
-void child(int father_pid)
+void child(char *flag, int len)
 {
-	int c;
-
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 1; i++) {
 		printf("Hello %d!\n", i);
 		sleep(1);
 	}
 
-	c = father_pid / 2;
-
-	for (;;) {
-		printf("Sleeping forever!\n");
-		sleep(1);
-	}
+	check_flag(flag, len);
 }
 
 /*
@@ -38,6 +33,7 @@ void father(int child_pid)
 {
 	int status;
 	long err;
+	struct user_regs_struct *regs;
 
 	// Attach to our child
 	dbg_attach(child_pid);
@@ -54,7 +50,24 @@ void father(int child_pid)
 	// Wait that the process is dead
 	printf("Waiting...\n");
 	waitpid(child_pid, &status, 0);
-	printf("Wait ok. Exiting.\n");
+	// Get registr values
+	regs = dbg_get_regs();
+	unpack(child_pid, BP_CHILD_01);
+	// Tell the process to continue
+	regs->rip -= 1;
+	dbg_set_regs(regs);
+	free(regs);
+	dbg_continue();
+	if (WIFEXITED(status)) {
+		printf("exited, status=%d\n", WEXITSTATUS(status));
+	} else if (WIFSIGNALED(status)) {
+		printf("killed by signal %d\n", WTERMSIG(status));
+	} else if (WIFSTOPPED(status)) {
+		printf("stopped by signal %d\n", WSTOPSIG(status));
+	} else if (WIFCONTINUED(status)) {
+    		printf("continued\n");
+	}
+	printf("Wait ok (status %i). Exiting.\n", status);
 	// TODO Check waitpid status and don't exit when the child reached
 	// a breakpoint (add some main loop)
 }
@@ -67,16 +80,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: ./%s FLAG\n-- aborting\n", argv[0]);
 		exit(1);
 	}
-	
-	if (check_flag(argv[1], strlen(argv[1])))
-		printf("Yep, I guess you're right.\n");
-	else
-		printf("J'avais dit ravioli. La vie de ma mère.\n");
-	exit(0);
 
 	int child_pid = fork();
 	if (!child_pid) {
-		child(father_pid);
+		child(argv[1], strlen(argv[1]));
 	} else {
 		printf("Father created: %d, child is: %d\n", father_pid, child_pid);
 		father(child_pid);
