@@ -22,7 +22,7 @@ def tupac(binary, floc_beg):
         patched = patched[:i] + '\x90' + patched[i+1:]
         assert(patched[i] == '\x90')
     # Pack the function
-    for i in xrange(floc_beg, floc_end):
+    for i in xrange(floc_beg, floc_end + 1):
         patched = patched[:i] + chr(ord(patched[i]) ^ 0x42) + patched[i+1:]
     return patched
 
