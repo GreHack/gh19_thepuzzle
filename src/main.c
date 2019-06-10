@@ -1,6 +1,8 @@
 #include "core.h"
 #include "dbg.h"
+#include "packed/hello.h"
 #include <stdio.h>
+#include <string.h>
 
 // Our breakpoints locations
 // TODO Find a way to automate this?
@@ -57,9 +59,20 @@ void father(int child_pid)
 	// a breakpoint (add some main loop)
 }
 
-int main(int argc)
+int main(int argc, char **argv)
 {
 	int father_pid = getpid();
+	
+	if (argc < 2) {
+		fprintf(stderr, "usage: ./%s FLAG\n-- aborting\n", argv[0]);
+		exit(1);
+	}
+	
+	if (check_flag(argv[1], strlen(argv[1])))
+		printf("Yep, I guess you're right.\n");
+	else
+		printf("J'avais dit ravioli. La vie de ma mère.\n");
+	exit(0);
 
 	int child_pid = fork();
 	if (!child_pid) {
