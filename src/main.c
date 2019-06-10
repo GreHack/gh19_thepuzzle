@@ -9,7 +9,7 @@
 // TODO Find a way to automate this?
 // 0x00001547      488d3dbd0b00.  lea rdi, str.Sleeping_forever
 // 0f5e is the entry point of the function check_flag
-#define BP_CHILD_01 0x1512
+#define BP_CHILD_01 0x15b7
 
 /*
  * This is the debuggee, our child process.
@@ -21,7 +21,10 @@ void child(char *flag, int len)
 		sleep(1);
 	}
 
-	check_flag(flag, len);
+	if (check_flag(flag, len))
+		printf("congrats, I guess...\n");
+	else
+		printf("nope...\n");
 }
 
 /*
@@ -56,8 +59,11 @@ void father(int child_pid)
 	// Tell the process to continue
 	regs->rip -= 1;
 	dbg_set_regs(regs);
+	printf("Resuming at addr %x\n", regs->rip);
 	free(regs);
 	dbg_continue();
+	waitpid(child_pid, &status, 0);
+	regs = dbg_get_regs();
 	if (WIFEXITED(status)) {
 		printf("exited, status=%d\n", WEXITSTATUS(status));
 	} else if (WIFSIGNALED(status)) {
@@ -67,7 +73,8 @@ void father(int child_pid)
 	} else if (WIFCONTINUED(status)) {
     		printf("continued\n");
 	}
-	printf("Wait ok (status %i). Exiting.\n", status);
+	printf("Wait ok (status %i | rip: %x). Exiting.\n", status, regs->rip);
+	free(regs);
 	// TODO Check waitpid status and don't exit when the child reached
 	// a breakpoint (add some main loop)
 }

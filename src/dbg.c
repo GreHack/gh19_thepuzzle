@@ -125,7 +125,7 @@ char *dbg_write_mem(int offset, int nb_bytes, char *data)
 {
 	void *addr = (void *) g_baddr + offset;
         int dword;
-	for (int i = 0; i < nb_bytes/4; i++) {
+	for (int i = 0; i <= nb_bytes/4; i++) {
 		dword = ((int *) data)[i];
 		ptrace(PTRACE_POKETEXT, g_pid, addr + 4*i, dword);
 	}
@@ -134,12 +134,14 @@ char *dbg_write_mem(int offset, int nb_bytes, char *data)
 void dbg_show_mem(int offset, int len)
 {
 	char *mem = dbg_read_mem(offset, len);
+	long addr = g_baddr + offset;
+	printf("[%08x] ", addr);
 	for (int i = 0; i < len; i++) {
 		printf("%02X ", (mem[i] & 0xFF));
 		if (i % 16 == 7)
 			printf("  ");
 		else if (i % 16 == 15)
-			printf("\n");
+			printf("\n[%08x] ", addr + i);
 	}
 	printf("\n");
 	free(mem);

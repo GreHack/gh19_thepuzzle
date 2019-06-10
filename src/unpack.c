@@ -8,9 +8,9 @@
 
 #include "dbg.h"
 
+#define DEBUG 0
 
 int unpack(long pid, int offset) {
-	dbg_show_mem(offset, 0x1000);
 	char *mem = dbg_read_mem(offset, 0x1000);
 	int i = 0;
 	int state = 0;
@@ -28,7 +28,6 @@ int unpack(long pid, int offset) {
 	// FIXME for now, hard coding the 0x55 at the bg of the function
 	/* because first byte was overwriten by 0xCC */
 	mem[0] = 0x55;
-	dbg_write_mem(offset, i, mem);
-	dbg_show_mem(offset, 0x1000);
+	dbg_write_mem(offset, i+1, mem);
 	return 0;
 }
