@@ -107,3 +107,52 @@ void dbg_continue()
 		dbg_die("Cannot continue the process");
 	}
 }
+
+char *dbg_read_mem(int offset, int nb_bytes)
+{
+        char *buffer = (char *) malloc(nb_bytes);
+	long ret;
+	void *addr = (void *) g_baddr + offset;
+	for (int i = 0; i < nb_bytes; i += 2) {
+		ret = ptrace(PTRACE_PEEKTEXT, g_pid, addr + i, 0);	
+		buffer[i] = ret & 0xFF;
+		buffer[i + 1] = ret >> 8;
+	}
+	return buffer;
+}
+
+char *dbg_write_mem(int offset, int nb_bytes, char *data)
+{
+	void *addr = (void *) g_baddr + offset;
+        int dword;
+	for (int i = 0; i < nb_bytes/4; i++) {
+		dword = ((int *) data)[i];
+		ptrace(PTRACE_POKETEXT, g_pid, addr + 4*i, dword);
+	}
+}
+
+void dbg_show_mem(int offset, int len)
+{
+	char *mem = dbg_read_mem(offset, len);
+	for (int i = 0; i < len; i++) {
+		printf("%02X ", (mem[i] & 0xFF));
+		if (i % 16 == 7)
+			printf("  ");
+		else if (i % 16 == 15)
+			printf("\n");
+	}
+	printf("\n");
+	free(mem);
+}
+
+struct user_regs_struct *dbg_get_regs(void)
+{
+	struct user_regs_struct *regs = (struct user_regs_struct *) malloc(sizeof(struct user_regs_struct));
+	ptrace(PTRACE_GETREGS, g_pid, NULL, regs);
+	return regs;
+}
+
+void dbg_set_regs(struct user_regs_struct *regs)
+{
+	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
+}
