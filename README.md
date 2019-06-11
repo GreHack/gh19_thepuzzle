@@ -5,6 +5,5 @@
 Type in, at the root directory:
 
 ```
-cmake -B build
-make -C build
+make clean && make
 ```
