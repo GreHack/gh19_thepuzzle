@@ -6,20 +6,21 @@
 #include <string.h>
 
 // Our breakpoints locations
-// TODO Find a way to automate this?
-// 0x00001547      488d3dbd0b00.  lea rdi, str.Sleeping_forever
-// 0f5e is the entry point of the function check_flag
-#define BP_CHILD_01 0x15b7
+// TODO Find a way to automate this
+// 21d9 is the entry point of the function check_flag
+#define BP_CHILD_01 0x12d7
 
 /*
  * This is the debuggee, our child process.
  */
 void child(char *flag, int len)
 {
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 2; i++) {
 		printf("Hello %d!\n", i);
-		sleep(1);
+		sleep(0.1);
 	}
+
+	printf("Break here please!\n");
 
 	if (check_flag(flag, len))
 		printf("congrats, I guess...\n");
@@ -35,34 +36,25 @@ void child(char *flag, int len)
 void father(int child_pid)
 {
 	int status;
-	long err;
 	struct user_regs_struct *regs;
 
-	// Attach to our child
 	dbg_attach(child_pid);
-
-	// Add a breakpoint
-	dbg_break((void *) BP_CHILD_01);
 
 	// Wait to catch the first SIGSTOP sent by dbg_attach
 	waitpid(child_pid, &status, 0);
 
-	// Tell the process to continue
+	dbg_break((void *) BP_CHILD_01);
+
 	dbg_continue();
 
 	// Wait that the process is dead
 	printf("Waiting...\n");
 	waitpid(child_pid, &status, 0);
-	// Get registr values
-	regs = dbg_get_regs();
-	unpack(child_pid, BP_CHILD_01);
+
+	//unpack(child_pid, BP_CHILD_01);
+
 	// Tell the process to continue
-	regs->rip -= 1;
-	dbg_set_regs(regs);
-	printf("Resuming at addr %x\n", regs->rip);
-	free(regs);
 	dbg_continue();
-	waitpid(child_pid, &status, 0);
 	regs = dbg_get_regs();
 	if (WIFEXITED(status)) {
 		printf("exited, status=%d\n", WEXITSTATUS(status));
@@ -73,10 +65,8 @@ void father(int child_pid)
 	} else if (WIFCONTINUED(status)) {
     		printf("continued\n");
 	}
-	printf("Wait ok (status %i | rip: %x). Exiting.\n", status, regs->rip);
+	printf("Wait ok (status %i | rip: %llx). Exiting.\n", status, regs->rip);
 	free(regs);
-	// TODO Check waitpid status and don't exit when the child reached
-	// a breakpoint (add some main loop)
 }
 
 int main(int argc, char **argv)

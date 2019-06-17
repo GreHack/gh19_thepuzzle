@@ -5,6 +5,13 @@
 #include <string.h>
 #include <fcntl.h>
 
+#define dbg_die(x) { \
+	printf("==== FATAL: DBG DEAD -- %s - %s:%d\n", x, __FILE__, __LINE__); \
+	perror("Reason:"); \
+	kill(g_pid, SIGKILL); \
+	exit(-1); \
+	}
+
 /* Right now, our debugger can debug a unique target.
  * It's cool because we don't have to pass the pid each time. */
 static int g_pid;
@@ -12,12 +19,35 @@ static int g_pid;
 /* We save here the base address of our program (not known because of PIE) */
 static uint64_t g_baddr;
 
-#define dbg_die(x) { \
-	printf("==== FATAL: DBG DEAD -- %s - %s:%d\n", x, __FILE__, __LINE__); \
-	perror("Reason:"); \
-	kill(g_pid, SIGKILL); \
-	exit(-1); \
+/* Breakpoint structure, used to save the original data */
+typedef struct debug_breakpoint_t {
+	uint64_t addr;
+	uint8_t orig_data;
+} dbg_bp;
+
+typedef struct debug_breakpoint_node_t {
+	dbg_bp *data;
+	struct debug_breakpoint_node_t *next;
+} dbg_bp_node;
+
+/* Our breakpoints list head */
+dbg_bp_node *breakpoints = NULL;
+
+static void bp_node_append(dbg_bp *data) {
+	if (!breakpoints) {
+		dbg_die("List is not allocated");
 	}
+	dbg_bp_node *end = breakpoints;
+	while (end->next) {
+		end = end->next;
+	}
+	dbg_bp_node *newnode = malloc(sizeof(dbg_bp_node));
+	newnode->data = NULL;
+	newnode->next = NULL;
+	end->data = data;
+	end->next = newnode;
+}
+
 
 /*
  * Fetch our process base address.
@@ -63,6 +93,16 @@ void dbg_attach(int pid)
 		dbg_die("Cannot attach");
 	}
 
+	// Alloc our list head
+	if (!breakpoints) {
+		breakpoints = malloc(sizeof(dbg_bp_node));
+		if (!breakpoints) {
+			dbg_die("Cannot reserve space for breakpoints");
+		}
+		breakpoints->data = NULL;
+		breakpoints->next = NULL;
+	}
+
 	// Fetch the base address, we will need it later
 	dbg_fetch_base_addr();
 }
@@ -72,7 +112,7 @@ void dbg_attach(int pid)
  * We are in the context of PIE, so the given relative address will be rebased
  * on top of the program base address.
  */
-long dbg_break(void *addr)
+void dbg_break(void *addr)
 {
 	// Because of PIE, we add the base address to the target addr
 	addr = g_baddr + addr;
@@ -82,15 +122,20 @@ long dbg_break(void *addr)
 	if (trap == -1) {
 		dbg_die("Cannot peek");
 	}
+	fprintf(stderr, "Instruction at %p: %lx\n", addr, trap);
+
+	dbg_bp *bp = malloc(sizeof(dbg_bp));
+	bp->addr = (uint64_t) addr;
+	bp->orig_data = trap & 0xff;
+	bp_node_append(bp);
 
 	// Add a int3 instruction (0xcc *is* the INT3 instruction)
 	trap = (trap & 0xffffffffffffff00) | 0xcc;
 
 	// Write the instruction back
-	// TODO We will probably want to save the old instruction
-	// if we want to remove the breakpoint in the future
-	// or maybe I didn't understand how ptrace_poketext works yet
-	return ptrace(PTRACE_POKETEXT, g_pid, addr, trap);
+	if (ptrace(PTRACE_POKETEXT, g_pid, addr, trap) == -1) {
+		dbg_die("Could not insert breakpoint");
+	}
 }
 
 /*
@@ -99,15 +144,74 @@ long dbg_break(void *addr)
  */
 void dbg_continue()
 {
-	// TODO: If we were stopped on a breakpoint, we might
-	// want to restore the original instruction before
-	// continuing ;)
-	long ret = ptrace(PTRACE_CONT, g_pid, NULL, NULL);
-	if (ret == -1) {
-		dbg_die("Cannot continue the process");
+	struct user_regs_struct regs;
+	ptrace(PTRACE_GETREGS, g_pid, NULL, &regs);
+	fprintf(stderr, "Resuming at addr: 0x%llx\n", regs.rip);
+
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		fprintf(stderr, "VAL, VAL: %llx, %lx\n", regs.rip, bp->addr);
+		if (bp->addr == regs.rip - 1) {
+			break;
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+
+	// We reached one of our breakpoints
+	if (bp) {
+		// We executed an int3 execution
+		// We have to roll back one byte before
+		regs.rip -= 1;
+		if (ptrace(PTRACE_SETREGS, g_pid, NULL, &regs) == -1) {
+			dbg_die("Cannot set new registers value");
+		}
+
+		if (regs.rip != bp->addr) {
+			dbg_die("WHAT THE FUCK IS GOING ON?!");
+		}
+
+		// Replace the breakpoint by its original instruction
+		long orig = ptrace(PTRACE_PEEKTEXT, g_pid, bp->addr, NULL);
+		if (orig == -1) {
+			dbg_die("Cannot get the original instruction");
+		}
+		fprintf(stderr, "Current instruction: %lx\n", orig);
+		fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
+		long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
+		fprintf(stderr, "New instruction: %lx\n", newdata);
+		if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
+			dbg_die("Cannot modify the program instruction");
+		}
+
+		// Single step
+		if (ptrace(PTRACE_SINGLESTEP, g_pid, NULL, NULL) == -1) {
+			dbg_die("Cannot singlestep");
+		}
+		// TODO Replace this sleep with a waitpid() or something
+		sleep(0.1);
+
+		// Rewrite the breakpoint and continue
+		if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, orig) == -1) {
+			dbg_die("Cannot modify the program instruction");
+		}
+		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
+			dbg_die("Cannot continue the process");
+		}
+	} else {
+		fprintf(stderr, "WARNING: Continue reason not handled\n");
+		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
+			dbg_die("Cannot continue the process");
+		}
 	}
 }
 
+/*
+ * Read memory from the debuggee.
+ * The returned buffer must be freed.
+ */
 char *dbg_read_mem(int offset, int nb_bytes)
 {
         char *buffer = (char *) malloc(nb_bytes);
@@ -121,7 +225,10 @@ char *dbg_read_mem(int offset, int nb_bytes)
 	return buffer;
 }
 
-char *dbg_write_mem(int offset, int nb_bytes, char *data)
+/*
+ * Write debuggee's memory.
+ */
+void dbg_write_mem(int offset, int nb_bytes, char *data)
 {
 	void *addr = (void *) g_baddr + offset;
         int dword;
@@ -135,13 +242,13 @@ void dbg_show_mem(int offset, int len)
 {
 	char *mem = dbg_read_mem(offset, len);
 	long addr = g_baddr + offset;
-	printf("[%08x] ", addr);
+	printf("[%016lx] ", addr);
 	for (int i = 0; i < len; i++) {
 		printf("%02X ", (mem[i] & 0xFF));
 		if (i % 16 == 7)
 			printf("  ");
 		else if (i % 16 == 15)
-			printf("\n[%08x] ", addr + i);
+			printf("\n[%016lx] ", addr + i);
 	}
 	printf("\n");
 	free(mem);
