@@ -12,7 +12,7 @@ LDFLAGS=
 all: $(EXEC)
 
 _DEPS=core.h dbg.h unpack.h packed/hello.h
-_SRC=$(EXEC).c dbg.c unpack.c packed/hello.c
+_SRC=$(EXEC).c dbg.c unpack.c packed/hello.c dbg_parser.c
 _OBJ=$(_SRC:.c=.o)
 DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))

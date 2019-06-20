@@ -17,7 +17,7 @@ void child(char *flag, int len)
 {
 	for (int i = 0; i < 2; i++) {
 		printf("Hello %d!\n", i);
-		sleep(0.1);
+		usleep(100);
 	}
 
 	printf("Break here please!\n");
@@ -72,6 +72,10 @@ void father(int child_pid)
 int main(int argc, char **argv)
 {
 	int father_pid = getpid();
+	char *input = malloc(1024);
+	fgets(input, 1024, stdin);
+	dbg_parse_command(input);
+	return 0;
 	
 	if (argc < 2) {
 		fprintf(stderr, "usage: ./%s FLAG\n-- aborting\n", argv[0]);

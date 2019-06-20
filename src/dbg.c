@@ -1,16 +1,8 @@
 #include "dbg.h"
 #include "core.h"
 #include <stdio.h>
-#include <sys/user.h>
 #include <string.h>
 #include <fcntl.h>
-
-#define dbg_die(x) { \
-	printf("==== FATAL: DBG DEAD -- %s - %s:%d\n", x, __FILE__, __LINE__); \
-	perror("Reason:"); \
-	kill(g_pid, SIGKILL); \
-	exit(-1); \
-	}
 
 /* Right now, our debugger can debug a unique target.
  * It's cool because we don't have to pass the pid each time. */
