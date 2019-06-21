@@ -11,6 +11,8 @@ typedef enum {
 	PLUS,
 	MINUS,
 	MULT,
+	OPAR,
+	CPAR,
 	REG,
 	END
 } token;
@@ -20,6 +22,8 @@ const char *token_name[END+1] = {
 	"PLUS",
 	"MINUS",
 	"MULT",
+	"OPAR",
+	"CPAR",
 	"REG",
 	"END"
 };
@@ -41,7 +45,7 @@ static void dbg_parse_int()
 			res = res * 10 + (*p - '0');
 			++p;
 		} else {
-			dbg_die("Stop bullshitting me, invalid INT");
+			break;
 		}
 	}
 	att = res;
@@ -74,6 +78,12 @@ static token dbg_token_next()
 		case '*':
 			++p;
 			return MULT;
+		case '(':
+			++p;
+			return OPAR;
+		case ')':
+			++p;
+			return CPAR;
 		case '$':
 			++p;
 			dbg_parse_reg();
@@ -101,23 +111,85 @@ static void parse_token(token expected)
 }
 
 /*
- * General expression, can be anything
+ * Level 0 general expression, high priority
  */
-static void dbg_parse_expr(uint64_t *res)
+static void dbg_parse_expr0(uint64_t *r)
 {
 	switch (CURRENT_TOKEN) {
 	case INT:
-		*res = att;
+		*r = att;
 		parse_token(INT);
 		break;
 	case REG:
+		*r = att;
 		parse_token(REG);
 		break;
 	default:
-		dbg_die("Unsupported syntax");
+		dbg_die("Invalid token for tokexpr");
 	}
-	// TODO Loop on itself
-	// TODO Define the syntax...
+}
+
+/*
+ * Level 1 expression, normal priority
+ */
+static void dbg_parse_expr1X(uint64_t v, uint64_t *r)
+{
+	uint64_t n;
+	switch (CURRENT_TOKEN) {
+	case MULT:
+		parse_token(MULT);
+		dbg_parse_expr0(&n);
+		dbg_parse_expr1X(v * n, r);
+		break;
+	default:
+		// Epsilon, do nothing
+		*r = v;
+		break;
+	}
+}
+
+/*
+ * Level 1 general expression
+ */
+static void dbg_parse_expr1(uint64_t *r)
+{
+	uint64_t n;
+	dbg_parse_expr0(&n);
+	dbg_parse_expr1X(n, r);
+}
+
+/*
+ * Level 2 expression, lower priority
+ * v is the previous value (coming from the left)
+ */
+static void dbg_parse_expr2X(uint64_t v, uint64_t *r)
+{
+	uint64_t n;
+	switch(CURRENT_TOKEN) {
+	case PLUS:
+		parse_token(PLUS);
+		dbg_parse_expr1(&n);
+		dbg_parse_expr2X(v + n, r);
+		break;
+	case MINUS:
+		parse_token(MINUS);
+		dbg_parse_expr1(&n);
+		dbg_parse_expr2X(v - n, r);
+	default:
+		// Epsilon, do nothing
+		*r = v;
+		break;
+	}
+}
+
+/*
+ * General expression, can be anything
+ */
+static void dbg_parse_expr(uint64_t *r)
+{
+	uint64_t n;
+	dbg_parse_expr1(&n);
+	dbg_parse_expr2X(n, r);
 }
 
 
@@ -147,6 +219,7 @@ void dbg_parse_command(const char* input)
 	if (!strncmp(word, "CreateBreakpointAtAddress", len) ||
 			!strncmp(word, "b", len)) {
 		dbg_parse_expr(&res);
+		fprintf(stderr, "PARSING COMPLETE, result: %lu\n", res);
 		// dbg_break(res);
 	} else {
 		dbg_die("I don't understand what you say bro");
