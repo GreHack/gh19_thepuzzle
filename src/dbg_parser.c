@@ -107,14 +107,17 @@ static void parse_token(token expected)
 	if (CURRENT_TOKEN != END) {
 		CURRENT_TOKEN = dbg_token_next();
 	}
-	fprintf(stderr, "Read: %s\n", token_name[CURRENT_TOKEN]);
+	// fprintf(stderr, "Read: %s\n", token_name[CURRENT_TOKEN]);
 }
+
+static void dbg_parse_expr(uint64_t *r);
 
 /*
  * Level 0 general expression, high priority
  */
 static void dbg_parse_expr0(uint64_t *r)
 {
+	uint64_t n;
 	switch (CURRENT_TOKEN) {
 	case INT:
 		*r = att;
@@ -123,6 +126,16 @@ static void dbg_parse_expr0(uint64_t *r)
 	case REG:
 		*r = att;
 		parse_token(REG);
+		break;
+	case MINUS:
+		parse_token(MINUS);
+		dbg_parse_expr0(&n);
+		*r = n * -1;
+		break;
+	case OPAR:
+		parse_token(OPAR);
+		dbg_parse_expr(r);
+		parse_token(CPAR);
 		break;
 	default:
 		dbg_die("Invalid token for tokexpr");
@@ -175,6 +188,7 @@ static void dbg_parse_expr2X(uint64_t v, uint64_t *r)
 		parse_token(MINUS);
 		dbg_parse_expr1(&n);
 		dbg_parse_expr2X(v - n, r);
+		break;
 	default:
 		// Epsilon, do nothing
 		*r = v;
@@ -213,13 +227,13 @@ void dbg_parse_command(const char* input)
 	p = ptr;
 	CURRENT_TOKEN = dbg_token_next();
 	uint64_t res = 0;
-	fprintf(stderr, "Read (init): %s\n", token_name[CURRENT_TOKEN]);
+	// fprintf(stderr, "Read (init): %s\n", token_name[CURRENT_TOKEN]);
 
 	// Get the command
 	if (!strncmp(word, "CreateBreakpointAtAddress", len) ||
 			!strncmp(word, "b", len)) {
 		dbg_parse_expr(&res);
-		fprintf(stderr, "PARSING COMPLETE, result: %lu\n", res);
+		fprintf(stderr, "PARSING COMPLETE, result: %li\n", res);
 		// dbg_break(res);
 	} else {
 		dbg_die("I don't understand what you say bro");
