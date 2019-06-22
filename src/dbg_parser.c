@@ -1,21 +1,9 @@
-#include "core.h"
 #include "dbg.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 static int g_pid = -31337; // Hack because I don't want to rewrite dbg_die
-
-typedef enum {
-	INT,
-	PLUS,
-	MINUS,
-	MULT,
-	OPAR,
-	CPAR,
-	REG,
-	END
-} token;
 
 const char *token_name[END+1] = {
 	"INT",
@@ -27,10 +15,6 @@ const char *token_name[END+1] = {
 	"REG",
 	"END"
 };
-
-static token CURRENT_TOKEN = -1;
-static const char* p; // Current position
-static uint64_t att; // Current token attribute
 
 static int is_space(const char p)
 {
@@ -62,7 +46,11 @@ static void dbg_parse_reg()
 	att = 0;
 }
 
+#ifdef TEST
+token dbg_token_next()
+#else
 static token dbg_token_next()
+#endif
 {
 	for (;;) {
 		switch (*p) {
@@ -110,8 +98,6 @@ static void parse_token(token expected)
 	// fprintf(stderr, "Read: %s\n", token_name[CURRENT_TOKEN]);
 }
 
-static void dbg_parse_expr(uint64_t *r);
-
 /*
  * Level 0 general expression, high priority
  */
@@ -138,6 +124,7 @@ static void dbg_parse_expr0(uint64_t *r)
 		parse_token(CPAR);
 		break;
 	default:
+		fprintf(stderr, "Got invalid token for tokexpr: %s\n", token_name[CURRENT_TOKEN]);
 		dbg_die("Invalid token for tokexpr");
 	}
 }
@@ -199,7 +186,11 @@ static void dbg_parse_expr2X(uint64_t v, uint64_t *r)
 /*
  * General expression, can be anything
  */
+#ifndef TEST
 static void dbg_parse_expr(uint64_t *r)
+#else
+void dbg_parse_expr(uint64_t *r)
+#endif
 {
 	uint64_t n;
 	dbg_parse_expr1(&n);
