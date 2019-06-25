@@ -1,6 +1,7 @@
 #include "dbg.h"
 #include "core.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <fcntl.h>
 
@@ -134,7 +135,7 @@ void dbg_break(void *addr)
  * Tell the child process to continue.
  * Doesn't send any specific signal.
  */
-void dbg_continue()
+void dbg_continue(bool restore)
 {
 	struct user_regs_struct regs;
 	ptrace(PTRACE_GETREGS, g_pid, NULL, &regs);
@@ -174,10 +175,12 @@ void dbg_continue()
 		fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
 		long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
 		fprintf(stderr, "New instruction: %lx\n", newdata);
-		if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
-			dbg_die("Cannot modify the program instruction");
+        if (restore) {
+            fprintf(stderr, "OK, actually restoring original instr");
+		    if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
+			    dbg_die("Cannot modify the program instruction");
+            }
 		}
-
 		// Single step
 		if (ptrace(PTRACE_SINGLESTEP, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot singlestep");
@@ -189,6 +192,7 @@ void dbg_continue()
 		if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, orig) == -1) {
 			dbg_die("Cannot modify the program instruction");
 		}
+
 		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot continue the process");
 		}

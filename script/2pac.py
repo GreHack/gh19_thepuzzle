@@ -1,5 +1,6 @@
 
 from random import randint, choice
+from rc4 import RC4_crypt 
 import struct
 
 TUPAC_BEG_MARKER = "GiveUs2PacBack"
@@ -21,9 +22,12 @@ def tupac(binary, floc_beg):
         assert(patched[i] == TUPAC_END_MARKER[i - pac_end])
         patched = patched[:i] + '\x90' + patched[i+1:]
         assert(patched[i] == '\x90')
+    # print("before: " + patched[floc_beg:floc_end + 1].encode("hex"))
+    patched = patched[:floc_beg] + RC4_crypt("AYO", patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
+    # print("after: " + patched[floc_beg:floc_end + 1].encode("hex"))
     # Pack the function
-    for i in xrange(floc_beg, floc_end + 1):
-        patched = patched[:i] + chr(ord(patched[i]) ^ 0x42) + patched[i+1:]
+    ## for i in xrange(floc_beg, floc_end + 1):
+    ##    patched = patched[:i] + chr(ord(patched[i]) ^ 0x42) + patched[i+1:]
     return patched
 
 with open("main", "rb") as f:

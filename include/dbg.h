@@ -3,6 +3,7 @@
 
 #include <sys/ptrace.h>
 #include <sys/user.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdint.h>
@@ -19,7 +20,7 @@
 /* dbg.c */
 void dbg_attach(int pid);
 void dbg_break(void *addr);
-void dbg_continue();
+void dbg_continue(bool restore);
 char *dbg_read_mem(int offset, int nb_bytes);
 void dbg_write_mem(int offset, int nb_bytes, char *data);
 void dbg_show_mem(int offset, int len);
