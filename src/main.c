@@ -8,20 +8,13 @@
 // Our breakpoints locations
 // TODO Find a way to automate this
 // 21d9 is the entry point of the function check_flag
-#define BP_CHILD_01 0x21e7
+#define BP_CHILD_01 0x23cc
 
 /*
  * This is the debuggee, our child process.
  */
 void child(char *flag, int len)
 {
-	for (int i = 0; i < 2; i++) {
-		printf("Hello %d!\n", i);
-		usleep(100);
-	}
-
-	printf("Break here please!\n");
-
 	if (check_flag(flag, len))
 		printf("congrats, I guess...\n");
 	else
@@ -86,6 +79,11 @@ int main(int argc, char **argv)
 
 	int child_pid = fork();
 	if (!child_pid) {
+		/* Wait to leave some time to attach */
+		for (int i = 0; i < 2; i++) {
+			printf("Hello %d!\n", i);
+			usleep(100);
+		}
 		child(argv[1], strlen(argv[1]));
 	} else {
 		printf("Father created: %d, child is: %d\n", father_pid, child_pid);

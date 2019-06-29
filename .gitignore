@@ -5,3 +5,5 @@ build/
 main
 .ccls
 .ccls-cache/
+include/gen/*.txt
+script/*.pyc

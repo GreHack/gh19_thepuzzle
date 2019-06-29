@@ -6,8 +6,18 @@ import struct
 TUPAC_BEG_MARKER = "GiveUs2PacBack"
 TUPAC_END_MARKER = "LetTheLegendResurrect"
 
-def tupac(binary, floc_beg):
-    print("[2PAC] Packing function at Ox%x" % floc_beg)
+def import_keys(fpath):
+    with open(fpath, "r") as f:
+        data = f.read()
+    i = 0
+    while i < len(data) - 1:
+        if data[i] == '\\' and data[i+1] == 'x':
+	    data = data[:i] + chr(int(data[i+2:i+4], 16)) + data[i+4:]
+	i += 1
+    return map(lambda s: s[1:-1], data.split(",\n"))
+
+def tupac(binary, floc_beg, key):
+    print("[2PAC] Packing function at Ox%x with key %s" % (floc_beg, key.encode("hex")))
     # Look for final marker
     pac_beg = binary.find(TUPAC_BEG_MARKER, floc_beg + 1)
     pac_end = binary.find(TUPAC_END_MARKER, pac_beg + len(TUPAC_BEG_MARKER))
@@ -23,7 +33,7 @@ def tupac(binary, floc_beg):
         patched = patched[:i] + '\x90' + patched[i+1:]
         assert(patched[i] == '\x90')
     # print("before: " + patched[floc_beg:floc_end + 1].encode("hex"))
-    patched = patched[:floc_beg] + RC4_crypt("AYO", patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
+    patched = patched[:floc_beg] + RC4_crypt(key, patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
     # print("after: " + patched[floc_beg:floc_end + 1].encode("hex"))
     # Pack the function
     ## for i in xrange(floc_beg, floc_end + 1):
@@ -33,11 +43,13 @@ def tupac(binary, floc_beg):
 with open("main", "rb") as f:
     binary = f.read()
 
+keys = import_keys("include/gen/rc4_keys.txt")
+
 bookmark = binary.find(TUPAC_BEG_MARKER)
 while bookmark != -1:
     while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
         bookmark -= 1
-    binary = tupac(binary, bookmark)
+    binary = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
     bookmark = binary.find(TUPAC_BEG_MARKER, bookmark + 1)
     assert(bookmark == -1)
     break
