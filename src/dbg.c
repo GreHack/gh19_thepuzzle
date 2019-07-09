@@ -194,8 +194,12 @@ void dbg_continue(bool restore)
 		if (ptrace(PTRACE_SINGLESTEP, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot singlestep");
 		}
-		// TODO Replace this sleep with a waitpid() or something
-		sleep(0.1);
+
+		int status;
+		waitpid(g_pid, &status, 0);
+		if (!WIFSTOPPED(status) || WSTOPSIG(status) != SIGTRAP) {
+			dbg_die("WHAT THE FUCK WHY JOHN WHYYYYYYYY");
+		}
 
 		// Rewrite the breakpoint and continue
 		if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, orig) == -1) {
