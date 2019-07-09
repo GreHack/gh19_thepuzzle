@@ -58,4 +58,6 @@ uint64_t att; // Current token attribute
  static void dbg_parse_expr(uint64_t *r);
 #endif
 
+void dbg_parse_script(char *script);
+
 #endif

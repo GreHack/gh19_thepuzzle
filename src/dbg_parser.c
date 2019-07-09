@@ -207,6 +207,7 @@ void dbg_parse_command(const char* input)
 	const char *ptr = input;
 	char *word = NULL;
 
+	fprintf(stderr, "Handling line: %s\n", input);
 	while (!is_space(*ptr) && *ptr != '\0') {
 		ptr++;
 	}
@@ -235,4 +236,21 @@ void dbg_parse_command(const char* input)
 	} else {
 		dbg_die("I don't understand what you say bro");
 	}
+}
+
+void dbg_parse_script(char *script) {
+	fprintf(stderr, "AYOOOOOOOOOOOOOOOOOO\n");
+	char *line;
+	size_t nb;
+	/* Open script file */
+	FILE *script_fd = fopen(script, "r");
+	/* Read file content line by line */
+	while (getline(&line, &nb, script_fd) != -1) {
+		dbg_parse_command(line);
+	}
+	fclose(script_fd);
+	if (line) {
+		free(line);
+	}
+	return;
 }

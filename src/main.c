@@ -26,7 +26,7 @@ void child(char *flag, int len)
  * Because of yama hardening, the father *must* be our debugger.
  * Check /proc/sys/kernel/yama/ptrace_scope
  */
-void father(int child_pid)
+void father(int child_pid, char *script_path)
 {
 	int status;
 	struct user_regs_struct *regs;
@@ -36,7 +36,10 @@ void father(int child_pid)
 	// Wait to catch the first SIGSTOP sent by dbg_attach
 	waitpid(child_pid, &status, 0);
 
-	dbg_break((void *) BP_CHILD_01);
+	/* Let's read the debugging file */
+	dbg_parse_script(script_path);		
+
+	// dbg_break((void *) BP_CHILD_01);
 
 	dbg_continue(true);
 
@@ -82,8 +85,13 @@ int main(int argc, char **argv)
 	//dbg_parse_command(input);
 	//return 0;
 	
-	if (argc < 2) {
-		fprintf(stderr, "usage: ./%s FLAG\n-- aborting\n", argv[0]);
+	if (argc < 3) {
+		fprintf(stderr, "usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);
+		exit(1);
+	}
+
+	if (strncmp(".debugging_script", argv[1] + (strlen(argv[1]) - 17), 17) != 0) {
+		fprintf(stderr, "unknown extension for first argument -- aborting\n");
 		exit(1);
 	}
 
@@ -97,7 +105,7 @@ int main(int argc, char **argv)
 		child(argv[1], strlen(argv[1]));
 	} else {
 		printf("Father created: %d, child is: %d\n", father_pid, child_pid);
-		father(child_pid);
+		father(child_pid, argv[1]);
 	}
 
 	return 0;
