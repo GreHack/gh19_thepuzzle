@@ -39,23 +39,11 @@ void father(int child_pid, char *script_path)
 	/* Let's read the debugging file */
 	dbg_parse_script(script_path);		
 
-	// dbg_break((void *) BP_CHILD_01);
-
-	dbg_continue(true);
-
-	// Wait that the process is dead
-	printf("Waiting...\n");
-	waitpid(child_pid, &status, 0);
-
-	printf("Unpacking...\n");
-	unpack(child_pid, BP_CHILD_01);
-
 	printf("Let's continue...\n");
 	// Main debugger loop
-	// TODO Make it better
+	dbg_continue(true);
 	while (true) {
-		// Tell the process to continue
-		dbg_continue(false);
+		waitpid(child_pid, &status, 0);
 		regs = dbg_get_regs();
 		if (WIFEXITED(status)) {
 			printf("exited, status=%d\n", WEXITSTATUS(status));
@@ -67,6 +55,7 @@ void father(int child_pid, char *script_path)
 			int sig = WSTOPSIG(status);
 			printf("stopped by signal %d\n", sig);
 			if (sig == SIGTRAP) {
+				fprintf(stderr, "BP hit: %p\n", regs->rip);
 				dbg_break_handle(regs->rip);
 			}
 		} else if (WIFCONTINUED(status)) {

@@ -5,6 +5,8 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include "unpack.h"
+
 /* Right now, our debugger can debug a unique target.
  * It's cool because we don't have to pass the pid each time. */
 static int g_pid;
@@ -293,5 +295,5 @@ void dbg_break_handle(uint64_t rip)
 	}
 
 	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
-	dbg_continue(false);
+	dbg_continue(bp->handler != unpack);
 }
