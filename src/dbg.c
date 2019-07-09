@@ -290,7 +290,7 @@ void dbg_break_handle(uint64_t rip)
 
 	if (bp->handler) {
 		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
-		void (*handler_func)(long, int) = g_baddr + bp->handler;
+		int (*handler_func)(long, int) = g_baddr + bp->handler;
 		handler_func(g_pid, rip - g_baddr - 1);
 	}
 
