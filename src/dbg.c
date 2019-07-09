@@ -268,3 +268,30 @@ void dbg_set_regs(struct user_regs_struct *regs)
 {
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
 }
+
+void dbg_break_handle(uint64_t rip)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr == rip - 1) {
+			break;
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+	if (!bp) {
+		printf("WARNING: Expected a breakpoint but there was none heh");
+		return;
+	}
+
+	if (bp->handler) {
+		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
+		void (*handler_func)(void) = bp->handler;
+		handler_func();
+	}
+
+	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
+	dbg_continue(false);
+}

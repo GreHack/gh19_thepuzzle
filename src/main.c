@@ -8,7 +8,7 @@
 // Our breakpoints locations
 // TODO Find a way to automate this
 // 21d9 is the entry point of the function check_flag
-#define BP_CHILD_01 0x28e1
+#define BP_CHILD_01 0x2a02
 
 /*
  * This is the debuggee, our child process.
@@ -61,9 +61,11 @@ void father(int child_pid)
 			printf("killed by signal %d\n", WTERMSIG(status));
 			break;
 		} else if (WIFSTOPPED(status)) {
-			printf("stopped by signal %d\n", WSTOPSIG(status));
-			// TODO Handle signal
-			// If breakpoint: call the handler
+			int sig = WSTOPSIG(status);
+			printf("stopped by signal %d\n", sig);
+			if (sig == SIGTRAP) {
+				dbg_break_handle(regs->rip);
+			}
 		} else if (WIFCONTINUED(status)) {
 			printf("continued\n");
 		}
