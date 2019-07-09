@@ -181,11 +181,11 @@ void dbg_continue(bool restore)
 			dbg_die("Cannot get the original instruction");
 		}
 		fprintf(stderr, "Current instruction: %lx\n", orig);
-		fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
-		long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
-		fprintf(stderr, "New instruction: %lx\n", newdata);
 		if (restore) {
-			fprintf(stderr, "OK, actually restoring original instr");
+			fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
+			long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
+			fprintf(stderr, "OK, actually restoring original instr\n");
+			fprintf(stderr, "New instruction: %lx\n", newdata);
 			if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
 				dbg_die("Cannot modify the program instruction");
 			}
@@ -290,10 +290,10 @@ void dbg_break_handle(uint64_t rip)
 
 	if (bp->handler) {
 		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
-		void (*handler_func)(void) = bp->handler;
-		handler_func();
+		void (*handler_func)(long, int) = g_baddr + bp->handler;
+		handler_func(g_pid, rip - g_baddr - 1);
 	}
 
 	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
-	dbg_continue(bp->handler != unpack);
+	dbg_continue((bp->handler + g_baddr) != unpack);
 }
