@@ -240,17 +240,17 @@ void dbg_parse_command(const char* input)
 
 void dbg_parse_script(char *script) {
 	fprintf(stderr, "AYOOOOOOOOOOOOOOOOOO\n");
-	char *line;
-	size_t nb;
+	char *line = NULL;
+	size_t nb = 0;
 	/* Open script file */
 	FILE *script_fd = fopen(script, "r");
 	/* Read file content line by line */
 	while (getline(&line, &nb, script_fd) != -1) {
 		dbg_parse_command(line);
+		if (line) {
+			free(line);
+		}
 	}
 	fclose(script_fd);
-	if (line) {
-		free(line);
-	}
 	return;
 }
