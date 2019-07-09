@@ -2,9 +2,12 @@
 from random import randint, choice
 from rc4 import RC4_crypt 
 import struct
+import subprocess
 
 TUPAC_BEG_MARKER = "GiveUs2PacBack"
 TUPAC_END_MARKER = "LetTheLegendResurrect"
+
+PACKED = list()
 
 def import_keys(fpath):
     with open(fpath, "r") as f:
@@ -32,12 +35,12 @@ def tupac(binary, floc_beg, key):
         assert(patched[i] == TUPAC_END_MARKER[i - pac_end])
         patched = patched[:i] + '\x90' + patched[i+1:]
         assert(patched[i] == '\x90')
-    # print("before: " + patched[floc_beg:floc_end + 1].encode("hex"))
     patched = patched[:floc_beg] + RC4_crypt(key, patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
     # print("after: " + patched[floc_beg:floc_end + 1].encode("hex"))
     # Pack the function
     ## for i in xrange(floc_beg, floc_end + 1):
     ##    patched = patched[:i] + chr(ord(patched[i]) ^ 0x42) + patched[i+1:]
+    PACKED.append(floc_beg)
     return patched
 
 with open("main", "rb") as f:
@@ -56,3 +59,11 @@ while bookmark != -1:
 
 with open("2pac_main", "wb") as f:
     f.write(binary)
+
+# Get address of unpacking routine
+unpacker = int(subprocess.check_output("readelf -s main | grep -E 'unpack$' | awk '{print $2}' | sed -re 's|^0+||'", shell=True), 16)
+
+with open("dbg/2pac.debugging_script", 'w') as f:
+    for func_addr in PACKED:
+        f.write("b {} {}\n".format(func_addr, unpacker))
+    f.write("r\n")
