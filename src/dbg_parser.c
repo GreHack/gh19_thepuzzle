@@ -123,6 +123,9 @@ static void dbg_parse_expr0(uint64_t *r)
 		dbg_parse_expr(r);
 		parse_token(CPAR);
 		break;
+	case END:
+		*r = 0;
+		break;
 	default:
 		fprintf(stderr, "Got invalid token for tokexpr: %s\n", token_name[CURRENT_TOKEN]);
 		dbg_die("Invalid token for tokexpr");
@@ -217,15 +220,18 @@ void dbg_parse_command(const char* input)
 	// Init our parser because any command will use it
 	p = ptr;
 	CURRENT_TOKEN = dbg_token_next();
-	uint64_t res = 0;
 	// fprintf(stderr, "Read (init): %s\n", token_name[CURRENT_TOKEN]);
 
 	// Get the command
 	if (!strncmp(word, "CreateBreakpointAtAddress", len) ||
 			!strncmp(word, "b", len)) {
-		dbg_parse_expr(&res);
-		fprintf(stderr, "PARSING COMPLETE, result: %li\n", res);
-		// dbg_break(res);
+		// Break command takes two arguments
+		uint64_t bp_addr = 0;
+		uint64_t bp_handler = 0;
+		dbg_parse_expr(&bp_addr);
+		dbg_parse_expr(&bp_handler);
+		dbg_break_handler((void *) bp_addr, (void *) bp_handler);
+		fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
 	} else {
 		dbg_die("I don't understand what you say bro");
 	}

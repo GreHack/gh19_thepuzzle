@@ -16,6 +16,7 @@ static uint64_t g_baddr;
 typedef struct debug_breakpoint_t {
 	uint64_t addr;
 	uint8_t orig_data;
+	uint64_t handler;
 } dbg_bp;
 
 typedef struct debug_breakpoint_node_t {
@@ -51,7 +52,7 @@ static void dbg_fetch_base_addr()
 	char buf[16 + 1];
 
 	// Warning: Maybe it won't work on some hardened linux kernels
- 	// Note: This works (/proc/self/maps) when called from the father,
+	// Note: This works (/proc/self/maps) when called from the father,
 	// because using fork without calling execve won't change the program
 	// base address (PIE/ASLR).
 	fd = open("/proc/self/maps", O_RDONLY);
@@ -107,6 +108,11 @@ void dbg_attach(int pid)
  */
 void dbg_break(void *addr)
 {
+	dbg_break_handler(addr, NULL);
+}
+
+void dbg_break_handler(void *addr, void *handler)
+{
 	// Because of PIE, we add the base address to the target addr
 	addr = g_baddr + addr;
 
@@ -120,6 +126,7 @@ void dbg_break(void *addr)
 	dbg_bp *bp = malloc(sizeof(dbg_bp));
 	bp->addr = (uint64_t) addr;
 	bp->orig_data = trap & 0xff;
+	bp->handler = handler;
 	bp_node_append(bp);
 
 	// Add a int3 instruction (0xcc *is* the INT3 instruction)
@@ -175,11 +182,11 @@ void dbg_continue(bool restore)
 		fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
 		long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
 		fprintf(stderr, "New instruction: %lx\n", newdata);
-        if (restore) {
-            fprintf(stderr, "OK, actually restoring original instr");
-		    if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
-			    dbg_die("Cannot modify the program instruction");
-            }
+		if (restore) {
+			fprintf(stderr, "OK, actually restoring original instr");
+			if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
+				dbg_die("Cannot modify the program instruction");
+			}
 		}
 		// Single step
 		if (ptrace(PTRACE_SINGLESTEP, g_pid, NULL, NULL) == -1) {
@@ -210,7 +217,7 @@ void dbg_continue(bool restore)
  */
 char *dbg_read_mem(int offset, int nb_bytes)
 {
-        char *buffer = (char *) malloc(nb_bytes);
+	char *buffer = (char *) malloc(nb_bytes);
 	long ret;
 	void *addr = (void *) g_baddr + offset;
 	for (int i = 0; i < nb_bytes; i += 2) {
@@ -227,7 +234,7 @@ char *dbg_read_mem(int offset, int nb_bytes)
 void dbg_write_mem(int offset, int nb_bytes, char *data)
 {
 	void *addr = (void *) g_baddr + offset;
-        int dword;
+	int dword;
 	for (int i = 0; i <= nb_bytes/4; i++) {
 		dword = ((int *) data)[i];
 		ptrace(PTRACE_POKETEXT, g_pid, addr + 4*i, dword);
