@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 			printf("Hello %d!\n", i);
 			usleep(100);
 		}
-		child(argv[1], strlen(argv[1]));
+		child(argv[2], strlen(argv[2]));
 	} else {
 		printf("Father created: %d, child is: %d\n", father_pid, child_pid);
 		father(child_pid, argv[1]);
