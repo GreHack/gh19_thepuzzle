@@ -39,9 +39,7 @@ void father(int child_pid, char *script_path)
 	/* Let's read the debugging file */
 	dbg_parse_script(script_path);		
 
-	printf("Let's continue...\n");
 	// Main debugger loop
-	dbg_continue(true);
 	while (true) {
 		waitpid(child_pid, &status, 0);
 		regs = dbg_get_regs();

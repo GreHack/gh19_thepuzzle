@@ -6,7 +6,7 @@ HDRDIR=include
 # CFlags
 EXEC=main
 CC=gcc
-CFLAGS=-Wall -Wextra -I$(HDRDIR) -fPIC
+CFLAGS=-Wall -Wextra -I$(HDRDIR) -fPIC -g
 LDFLAGS=
 
 all: $(EXEC)

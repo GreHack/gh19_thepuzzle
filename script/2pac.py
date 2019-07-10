@@ -66,4 +66,4 @@ unpacker = int(subprocess.check_output("readelf -s main | grep -E 'unpack$' | aw
 with open("dbg/2pac.debugging_script", 'w') as f:
     for func_addr in PACKED:
         f.write("b {} {}\n".format(func_addr, unpacker))
-    f.write("r\n")
+    f.write("c\n")

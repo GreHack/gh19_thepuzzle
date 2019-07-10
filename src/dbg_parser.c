@@ -233,13 +233,17 @@ void dbg_parse_command(const char* input)
 		dbg_parse_expr(&bp_handler);
 		dbg_break_handler((void *) bp_addr, (void *) bp_handler);
 		fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
-	} else {
+	}
+	else if (!strncmp(word, "ContinueProcess", len) ||
+			!strncmp(word, "c", len)) {
+		dbg_continue(true);
+	}
+	else {
 		dbg_die("I don't understand what you say bro");
 	}
 }
 
 void dbg_parse_script(char *script) {
-	fprintf(stderr, "AYOOOOOOOOOOOOOOOOOO\n");
 	char *line = NULL;
 	size_t nb = 0;
 	/* Open script file */
@@ -249,6 +253,8 @@ void dbg_parse_script(char *script) {
 		dbg_parse_command(line);
 		if (line) {
 			free(line);
+			line = NULL;
+			nb = 0;
 		}
 	}
 	fclose(script_fd);

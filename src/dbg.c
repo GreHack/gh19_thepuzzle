@@ -128,7 +128,7 @@ void dbg_break_handler(void *addr, void *handler)
 	dbg_bp *bp = malloc(sizeof(dbg_bp));
 	bp->addr = (uint64_t) addr;
 	bp->orig_data = trap & 0xff;
-	bp->handler = handler;
+	bp->handler = (uint64_t) handler;
 	bp_node_append(bp);
 
 	// Add a int3 instruction (0xcc *is* the INT3 instruction)
