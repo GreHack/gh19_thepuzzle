@@ -1,14 +1,10 @@
 #include "core.h"
 #include "dbg.h"
 #include "unpack.h"
+#include "screen.h"
 #include "packed/hello.h"
 #include <stdio.h>
 #include <string.h>
-
-// Our breakpoints locations
-// TODO Find a way to automate this
-// 21d9 is the entry point of the function check_flag
-#define BP_CHILD_01 0x2a02
 
 /*
  * This is the debuggee, our child process.
@@ -67,10 +63,10 @@ void father(int child_pid, char *script_path)
 int main(int argc, char **argv)
 {
 	int father_pid = getpid();
-	//char *input = malloc(1024);
-	//fgets(input, 1024, stdin);
-	//dbg_parse_command(input);
-	//return 0;
+
+	// Delete me if you don't want this :)
+	screen_init();
+	return 0;
 	
 	if (argc < 3) {
 		fprintf(stderr, "usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);

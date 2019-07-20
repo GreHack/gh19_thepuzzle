@@ -10,7 +10,7 @@
 
 #include "dbg.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 typedef struct {
 	unsigned char *s;
