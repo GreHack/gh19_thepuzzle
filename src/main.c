@@ -1,7 +1,8 @@
 #include "core.h"
 #include "dbg.h"
-#include "unpack.h"
+#include "ocr.h"
 #include "screen.h"
+#include "unpack.h"
 #include "packed/hello.h"
 #include <stdio.h>
 #include <string.h>
@@ -62,6 +63,9 @@ void father(int child_pid, char *script_path)
 
 int main(int argc, char **argv)
 {
+	ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
+	return 0;
+
 	int father_pid = getpid();
 
 	// Delete me if you don't want this :)

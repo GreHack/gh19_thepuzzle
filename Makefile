@@ -7,12 +7,12 @@ HDRDIR=include
 EXEC=main
 CC=gcc
 CFLAGS=-Wall -Wextra -I$(HDRDIR) -fPIC -g
-LDFLAGS=-lX11
+LDFLAGS=-lX11 -lm
 
 all: $(EXEC)
 
-_DEPS=core.h dbg.h unpack.h screen.h packed/hello.h gen/rc4_consts.txt gen/rc4_keys.txt
-_SRC=$(EXEC).c dbg.c unpack.c packed/hello.c dbg_parser.c screen.c
+_DEPS=core.h dbg.h unpack.h screen.h packed/hello.h gen/rc4_consts.txt gen/rc4_keys.txt ocr.h
+_SRC=$(EXEC).c dbg.c unpack.c packed/hello.c dbg_parser.c screen.c ocr.c
 _OBJ=$(_SRC:.c=.o)
 DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
