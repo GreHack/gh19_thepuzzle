@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "kdtree.h"
+
 #define MGC_LABEL	0x00000801
 #define MGC_DATA	0x00000803
 
@@ -89,16 +91,16 @@ float ocr_dist(img_t *i1, img_t *i2)
 	return sqrt(dist);
 }
 
-char ocr_recognize(set_t *set, img_t *img)
+char ocr_recognize(entry_t **entries, unsigned int nb_entries, img_t *img)
 {
 	float min_dist = INFINITY;
 	float dist;
 	entry_t *closest = NULL;
-	for (unsigned int i = 0; i < 10000; i++) {
-		dist = ocr_dist(img, set->data[i]->img);
+	for (unsigned int i = 0; i < nb_entries; i++) {
+		dist = ocr_dist(img, entries[i]->img);
 		if (dist < min_dist) {
 			min_dist = dist;
-			closest = set->data[i];
+			closest = entries[i];
 		}
 	}
 	ocr_show_img_cli(img);
@@ -112,6 +114,7 @@ int ocr_train(char *label_path, char *data_path)
 	unsigned int nb_label, nb_data;
 	FILE *flabel = fopen(label_path, "rb");
 	FILE *fdata = fopen(data_path, "rb");
+    entry_t **entries;
 	/* check file opening */
 	if (!fdata || !flabel) {
 		exit(1);
@@ -126,6 +129,8 @@ int ocr_train(char *label_path, char *data_path)
 	/* read number of label and data */
 	nb_label = ocr_read_uint(flabel);
 	nb_data = ocr_read_uint(fdata);
+    /* allocate entries table */
+    entries = (entry_t **) malloc(sizeof(entry_t *) * nb_label);
 	/* assert consistency */
 	if (nb_label != nb_data) {
 		exit(1);
@@ -134,17 +139,15 @@ int ocr_train(char *label_path, char *data_path)
 	unsigned int h, w;
 	w = ocr_read_uint(fdata);
 	h = ocr_read_uint(fdata);
-	fprintf(stderr, "img size: %u x %u\n", w, h);
-	set_t *set = (set_t *) malloc(sizeof(set_t));
 	/* construct data pool */
-	for (unsigned int i = 0; i < 10000; i++) {
-		set->data[i] = ocr_read_one_entry(flabel, fdata, h, w);
-		ocr_show_img_cli(set->data[i]->img);
-		printf("label: %c\n", set->data[i]->label);
+    nb_label = 1000;
+	for (unsigned int i = 0; i < nb_label; i++) {
+		entries[i] = ocr_read_one_entry(flabel, fdata, h, w);
+		// ocr_show_img_cli(entries[i]->img);
+		// printf("label: %c\n", entries[i]->label);
 	}
 	entry_t *entry = ocr_read_one_entry(flabel, fdata, h, w);
-	ocr_recognize(set, entry->img);
-	ocr_recognize(set, set->data[13]->img); // entry->img);
-	printf("%f\n", ocr_dist(set->data[13]->img, set->data[13]->img));
+	ocr_recognize(entries, nb_label, entry->img);
+    kd_create(entries, nb_label, 0);
 	return 0;
 }
