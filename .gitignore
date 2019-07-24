@@ -7,3 +7,4 @@ main
 .ccls-cache/
 include/gen/*.txt
 script/*.pyc
+data/
