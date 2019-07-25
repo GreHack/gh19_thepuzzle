@@ -4,11 +4,11 @@
 
 #include <stdbool.h>
 
-typedef struct {
+typedef /* struct {
 	unsigned char r;
 	unsigned char g;
 	unsigned char b;
-} pix_t;
+} */ unsigned char pix_t;
 
 typedef struct {
 	pix_t **pix;
@@ -25,6 +25,7 @@ typedef struct {
 	entry_t *data[10000];
 } set_t;
 
+float ocr_dist(img_t *i1, img_t *i2);
 int ocr_train(char *label_path, char *data_path);
 
 #endif

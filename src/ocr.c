@@ -50,9 +50,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 			unsigned char pixval;
 			pixval = (char) fgetc(fdata);
 			/* set pixel in structure */
-			img->pix[dh][dw].r = pixval;
-			img->pix[dh][dw].g = pixval;
-			img->pix[dh][dw].b = pixval;
+			img->pix[dh][dw] = pixval;
 			nb_read += 1;
 		}
 	}
@@ -66,7 +64,7 @@ void ocr_show_img_cli(img_t *img)
 {
 	for(unsigned int i = 0; i < img->h; i++) {
 		for (unsigned int j = 0; j < img->w; j++) {
-			if ((img->pix[i][j].r + img->pix[i][j].g + img->pix[i][j].b)/3.0 > 127) {
+			if (img->pix[i][j] > 127) {
 				printf("x");
 			} else {
 				printf(" ");
@@ -77,6 +75,7 @@ void ocr_show_img_cli(img_t *img)
 	return;
 }
 
+/* CAUTION: returns square of dist */
 float ocr_dist(img_t *i1, img_t *i2)
 {
 	float dist = 0;
@@ -85,10 +84,10 @@ float ocr_dist(img_t *i1, img_t *i2)
 	}
 	for (unsigned int i = 0; i < i1->h; i++) {
 		for (unsigned int j = 0; j < i1->w; j++) {
-			dist += pow((float) (i1->pix[i][j].r - i2->pix[i][j].r), 2.0);
+			dist += pow(i1->pix[i][j] - i2->pix[i][j], 2.0);
 		}
 	}
-	return sqrt(dist);
+	return dist;
 }
 
 char ocr_recognize(entry_t **entries, unsigned int nb_entries, img_t *img)
@@ -109,12 +108,24 @@ char ocr_recognize(entry_t **entries, unsigned int nb_entries, img_t *img)
 	return closest->label;
 }
 
+char ocr_recognize_kd(entry_t **entries, unsigned int nb_entries, img_t *img)
+{
+	knode_t *ktree = kd_create(entries, nb_entries, 0);
+	entry_t *best;
+	float dist;
+	kd_search(ktree, img, &best, &dist);
+	ocr_show_img_cli(img);
+	printf("recognized: %c\n", best->label);
+	ocr_show_img_cli(best->img);
+	return '1';
+}
+
 int ocr_train(char *label_path, char *data_path)
 {
 	unsigned int nb_label, nb_data;
 	FILE *flabel = fopen(label_path, "rb");
 	FILE *fdata = fopen(data_path, "rb");
-    entry_t **entries;
+	entry_t **entries;
 	/* check file opening */
 	if (!fdata || !flabel) {
 		exit(1);
@@ -129,8 +140,8 @@ int ocr_train(char *label_path, char *data_path)
 	/* read number of label and data */
 	nb_label = ocr_read_uint(flabel);
 	nb_data = ocr_read_uint(fdata);
-    /* allocate entries table */
-    entries = (entry_t **) malloc(sizeof(entry_t *) * nb_label);
+	/* allocate entries table */
+	entries = (entry_t **) malloc(sizeof(entry_t *) * nb_label);
 	/* assert consistency */
 	if (nb_label != nb_data) {
 		exit(1);
@@ -140,14 +151,16 @@ int ocr_train(char *label_path, char *data_path)
 	w = ocr_read_uint(fdata);
 	h = ocr_read_uint(fdata);
 	/* construct data pool */
-    nb_label = 1000;
+	nb_label = 1000;
 	for (unsigned int i = 0; i < nb_label; i++) {
 		entries[i] = ocr_read_one_entry(flabel, fdata, h, w);
 		// ocr_show_img_cli(entries[i]->img);
 		// printf("label: %c\n", entries[i]->label);
 	}
-	entry_t *entry = ocr_read_one_entry(flabel, fdata, h, w);
-	ocr_recognize(entries, nb_label, entry->img);
-    kd_create(entries, nb_label, 0);
+	for (unsigned int i = 0; i < 10; i++) {
+		entry_t *entry = ocr_read_one_entry(flabel, fdata, h, w);
+		ocr_recognize(entries, nb_label, entry->img);
+		ocr_recognize_kd(entries, nb_label, entry->img);
+	}
 	return 0;
 }
