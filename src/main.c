@@ -63,7 +63,9 @@ void father(int child_pid, char *script_path)
 
 int main(int argc, char **argv)
 {
-	ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
+	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
+	// call ocr_recognize(ocr, img) to recognize a number on an image
+	// for now, image must be of 28x28 pix FIXME
 	return 0;
 
 	int father_pid = getpid();

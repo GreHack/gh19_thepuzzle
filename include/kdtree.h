@@ -2,13 +2,13 @@
 #ifndef __KDTREE_H__
 #define __KDTREE_H__
 
-#include "ocr.h"
-
 #define KD_INODE 1
 #define KD_LEAF 2
 
 struct knode_st;
 typedef struct knode_st knode_t;
+
+#include "ocr.h"
 
 struct kinode_st {
     unsigned int coord[2];

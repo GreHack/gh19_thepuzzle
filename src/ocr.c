@@ -8,11 +8,17 @@
 #include <stdlib.h>
 #include <math.h>
 
+#if KD_TREE
 #include "kdtree.h"
+#endif
 
 #define MGC_LABEL	0x00000801
 #define MGC_DATA	0x00000803
 
+#define DEBUG 1
+
+
+/* Read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
 {
 	unsigned int read_val;
@@ -22,10 +28,13 @@ unsigned int ocr_read_uint(FILE *fd)
 	return htonl(read_val);
 }
 
+
+/* Check the magic number the beginning of a file */
 bool ocr_check_magic(FILE *fd, unsigned int magic)
 {
 	return ocr_read_uint(fd) == magic;
 }
+
 
 pix_t **ocr_allocate_pixels(unsigned int h, unsigned int w)
 {
@@ -36,6 +45,8 @@ pix_t **ocr_allocate_pixels(unsigned int h, unsigned int w)
 	return pix;
 }
 
+
+/* Read one entry for the data file to train the OCR */
 entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned int w)
 {
 	unsigned int nb_read = 0;
@@ -60,6 +71,9 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 	return entry;
 }
 
+
+/* Debug mode - display image in CLI */
+#if DEBUG
 void ocr_show_img_cli(img_t *img)
 {
 	for(unsigned int i = 0; i < img->h; i++) {
@@ -74,7 +88,10 @@ void ocr_show_img_cli(img_t *img)
 	}
 	return;
 }
+#endif
 
+
+/* Compute distance between two images (euclidian) */
 /* CAUTION: returns square of dist */
 float ocr_dist(img_t *i1, img_t *i2)
 {
@@ -90,37 +107,57 @@ float ocr_dist(img_t *i1, img_t *i2)
 	return dist;
 }
 
-char ocr_recognize(entry_t **entries, unsigned int nb_entries, img_t *img)
+
+#if !KD_TREE
+char ocr_nearest_array(ocr_t *ocr, img_t *img)
 {
 	float min_dist = INFINITY;
 	float dist;
 	entry_t *closest = NULL;
-	for (unsigned int i = 0; i < nb_entries; i++) {
-		dist = ocr_dist(img, entries[i]->img);
+	for (unsigned int i = 0; i < ocr->nb_entries; i++) {
+		dist = ocr_dist(img, ocr->entries[i]->img);
 		if (dist < min_dist) {
 			min_dist = dist;
-			closest = entries[i];
+			closest = ocr->entries[i];
 		}
 	}
+#if DEBUG
 	ocr_show_img_cli(img);
 	printf("recognized: %c\n", closest->label);
 	ocr_show_img_cli(closest->img);
+#endif
 	return closest->label;
 }
 
-char ocr_recognize_kd(entry_t **entries, unsigned int nb_entries, img_t *img)
+#else
+
+char ocr_nearest_kd(ocr_t *ocr, img_t *img) // entry_t **entries, unsigned int nb_entries, img_t *img)
 {
-	knode_t *ktree = kd_create(entries, nb_entries, 0);
 	entry_t *best;
 	float dist;
-	kd_search(ktree, img, &best, &dist);
+	kd_search(ocr, img, &best, &dist);
+#if DEBUG
 	ocr_show_img_cli(img);
 	printf("recognized: %c\n", best->label);
 	ocr_show_img_cli(best->img);
-	return '1';
+#endif
+	return best->label;
 }
 
-int ocr_train(char *label_path, char *data_path)
+#endif
+
+/* Find the nearest neighbor of the image given as a parameter in the 
+   data set of the OCR */
+char ocr_recognize(ocr_t *ocr, img_t *img)
+{
+#if KD_TREE
+	return ocr_nearest_kd(ocr, img);
+#else 
+	return ocr_nearest_array(ocr, img);
+#endif
+}
+
+ocr_t *ocr_train(char *label_path, char *data_path)
 {
 	unsigned int nb_label, nb_data;
 	FILE *flabel = fopen(label_path, "rb");
@@ -151,16 +188,30 @@ int ocr_train(char *label_path, char *data_path)
 	w = ocr_read_uint(fdata);
 	h = ocr_read_uint(fdata);
 	/* construct data pool */
-	nb_label = 1000;
+#if DEBUG
+	nb_label -= 10;
+#endif
 	for (unsigned int i = 0; i < nb_label; i++) {
 		entries[i] = ocr_read_one_entry(flabel, fdata, h, w);
 		// ocr_show_img_cli(entries[i]->img);
 		// printf("label: %c\n", entries[i]->label);
 	}
+#if KD_TREE
+	ocr_t *ocr = kd_create(entries, nb_label, 0);
+#else
+	ocr_t *ocr = malloc(sizeof(ocr_t));
+	ocr->nb_entries = nb_label;
+	ocr->entries = entries;
+#endif
+#if DEBUG
 	for (unsigned int i = 0; i < 10; i++) {
 		entry_t *entry = ocr_read_one_entry(flabel, fdata, h, w);
-		ocr_recognize(entries, nb_label, entry->img);
-		ocr_recognize_kd(entries, nb_label, entry->img);
+		ocr_recognize(ocr, entry->img);
 	}
-	return 0;
+#endif
+	return ocr;
+#if 0
+	knode_t *ktree = kd_create(entries, nb_entries, 0);
+	return NULL;
+#endif
 }
