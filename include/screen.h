@@ -1,6 +1,8 @@
 #ifndef __SCREEN_H__
 #define __SCREEN_H__
 
-int screen_init();
+#include "img.h"
+
+img_t *screen_capture();
 
 #endif

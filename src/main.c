@@ -63,7 +63,12 @@ void father(int child_pid, char *script_path)
 
 int main(int argc, char **argv)
 {
+	img_t *screenshot = screen_capture();
+#if DEBUG
+	img_to_file(screenshot, "/tmp/out.ppm");
+#endif
 	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
+	ocr_from_img(ocr, screenshot);
 	// call ocr_recognize(ocr, img) to recognize a number on an image
 	// for now, image must be of 28x28 pix FIXME
 	return 0;
@@ -71,7 +76,6 @@ int main(int argc, char **argv)
 	int father_pid = getpid();
 
 	// Delete me if you don't want this :)
-	screen_init();
 	return 0;
 	
 	if (argc < 3) {

@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "img.h"
+
 #if KD_TREE
 #include "kdtree.h"
 #endif
@@ -126,6 +128,8 @@ char ocr_nearest_array(ocr_t *ocr, img_t *img)
 	printf("recognized: %c\n", closest->label);
 	ocr_show_img_cli(closest->img);
 #endif
+	if (dist < 4000000)
+		return '!';
 	return closest->label;
 }
 
@@ -139,6 +143,7 @@ char ocr_nearest_kd(ocr_t *ocr, img_t *img) // entry_t **entries, unsigned int n
 #if DEBUG
 	ocr_show_img_cli(img);
 	printf("recognized: %c\n", best->label);
+	printf("dist: %f\n", ocr_dist(best->img, img));
 	ocr_show_img_cli(best->img);
 #endif
 	return best->label;
@@ -214,4 +219,28 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 	knode_t *ktree = kd_create(entries, nb_entries, 0);
 	return NULL;
 #endif
+}
+
+#define R_W 140
+#define R_H 140
+
+ocr_from_img(ocr_t *ocr, img_t *img)
+{
+	fprintf(stderr, "H = %i ; W = %i\n", img->h, img->w);
+	for (int h = 0; h < img->h - R_H; h++) {
+		for (int w = 0; w < img->w - R_W; w++) {
+			img_t *cropped = img_crop(img, h, w, R_H, R_W);
+#if 0
+			reduced = img_reduce(cropped, 28, 28);
+			ocr_show_img_cli(reduced);
+			char c = ocr_recognize(ocr, reduced);
+			if (c != '!') {
+				fprintf("Recognized: %c\n", c);
+			}
+#else
+			ocr_show_img_cli(cropped);
+			img_free(cropped);
+#endif
+		}
+	}
 }
