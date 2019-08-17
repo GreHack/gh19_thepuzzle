@@ -3,6 +3,7 @@ build/
 *.swp
 *.o
 main
+main.old
 .ccls
 .ccls-cache/
 include/gen/*.txt

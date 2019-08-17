@@ -116,6 +116,13 @@ int unpack(long pid, int offset)
 	}
 	mem[0] = 0x55;
 	dbg_write_mem(offset, i+1, mem);
+	dbg_hard_reset_breakpoint(offset, i+1);
 	free(rstate);
 	return 0;
 }
+
+void reverse_jump(uint64_t addr)
+{
+	fprintf(stderr, "[INFO] Reversing jump at %p!\n", (void *) addr);
+}
+

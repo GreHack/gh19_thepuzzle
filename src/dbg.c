@@ -16,9 +16,9 @@ static uint64_t g_baddr;
 
 /* Breakpoint structure, used to save the original data */
 typedef struct debug_breakpoint_t {
-	uint64_t addr;
+	uint64_t addr; // Must be an actual memory address, not an offset
 	uint8_t orig_data;
-	uint64_t handler;
+	uint64_t handler; // TODO Maybe use a memory address as well to be consistent with addr
 } dbg_bp;
 
 typedef struct debug_breakpoint_node_t {
@@ -31,7 +31,12 @@ dbg_bp_node *breakpoints = NULL;
 
 static void bp_node_append(dbg_bp *data) {
 	if (!breakpoints) {
-		dbg_die("List is not allocated");
+		breakpoints = malloc(sizeof(dbg_bp_node));
+		if (!breakpoints) {
+			dbg_die("Cannot reserve space for breakpoints");
+		}
+		breakpoints->data = NULL;
+		breakpoints->next = NULL;
 	}
 	dbg_bp_node *end = breakpoints;
 	while (end->next) {
@@ -42,6 +47,25 @@ static void bp_node_append(dbg_bp *data) {
 	newnode->next = NULL;
 	end->data = data;
 	end->next = newnode;
+}
+
+static bool bp_node_delete(dbg_bp *data) {
+	dbg_bp_node tmp = { NULL, breakpoints };
+	dbg_bp_node *cur = &tmp;
+	while (cur->next) {
+		if (cur->next->data == data) {
+			// Found the one, remove it
+			dbg_bp_node *next = cur->next;
+			cur->next = cur->next->next;
+			if (next == breakpoints) {
+				breakpoints = cur->next;
+			}
+			free(next);
+			return true;
+		}
+		cur = cur->next;
+	}
+	return false;
 }
 
 
@@ -89,16 +113,6 @@ void dbg_attach(int pid)
 		dbg_die("Cannot attach");
 	}
 
-	// Alloc our list head
-	if (!breakpoints) {
-		breakpoints = malloc(sizeof(dbg_bp_node));
-		if (!breakpoints) {
-			dbg_die("Cannot reserve space for breakpoints");
-		}
-		breakpoints->data = NULL;
-		breakpoints->next = NULL;
-	}
-
 	// Fetch the base address, we will need it later
 	dbg_fetch_base_addr();
 }
@@ -113,6 +127,10 @@ void dbg_break(void *addr)
 	dbg_break_handler(addr, NULL);
 }
 
+/*
+ * Add a breakpoint with its handler function.
+ * Note: Both are offsets because of PIE, not actual VA
+ */
 void dbg_break_handler(void *addr, void *handler)
 {
 	// Because of PIE, we add the base address to the target addr
@@ -121,6 +139,7 @@ void dbg_break_handler(void *addr, void *handler)
 	// Get the original instruction
 	long trap = ptrace(PTRACE_PEEKTEXT, g_pid, addr, NULL);
 	if (trap == -1) {
+		printf("K %p\n", addr);
 		dbg_die("Cannot peek");
 	}
 	fprintf(stderr, "Instruction at %p: %lx\n", addr, trap);
@@ -141,6 +160,27 @@ void dbg_break_handler(void *addr, void *handler)
 }
 
 /*
+ * Delete a breakpoint
+ */
+void dbg_break_delete(void *addr)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr == (uint64_t) addr) {
+			if (bp_node_delete(bp)) {
+				free(bp);
+			} else {
+				fprintf(stderr, "ERROR: Could not delete breakpoint at %p\n", addr);
+			}
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+}
+
+/*
  * Tell the child process to continue.
  * Doesn't send any specific signal.
  */
@@ -154,7 +194,7 @@ void dbg_continue(bool restore)
 	dbg_bp *bp = NULL;
 	while (ptr && ptr->next) {
 		bp = ptr->data;
-		fprintf(stderr, "VAL, VAL: %llx, %lx\n", regs.rip, bp->addr);
+		// fprintf(stderr, "Looking for bp: RIP, BPADDR: %llx, %lx\n", regs.rip, bp->addr);
 		if (bp->addr == regs.rip - 1) {
 			break;
 		}
@@ -273,6 +313,31 @@ struct user_regs_struct *dbg_get_regs(void)
 void dbg_set_regs(struct user_regs_struct *regs)
 {
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
+}
+
+/*
+ * If there was a breakpoint in the range [offset, offset+size], tell the debugger
+ * to consider the current data as the old data for the breakpoint, and rewrite
+ * the breakpoint
+ */
+void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	uint64_t va = g_baddr + offset;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr > va && bp->addr < (va + size)) {
+			void *handler = (void *) bp->handler;
+			void *addr = (void *) bp->addr;
+			// Delete breakpoint, and add it again
+			dbg_break_delete(addr);
+			dbg_break_handler(addr - g_baddr, handler);
+			fprintf(stderr, "[] HARD RESET BP AT %p\n", addr);
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
 }
 
 void dbg_break_handle(uint64_t rip)

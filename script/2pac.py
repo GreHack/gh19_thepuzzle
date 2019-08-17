@@ -9,6 +9,8 @@ TUPAC_END_MARKER = "LetTheLegendResurrect"
 
 PACKED = list()
 
+FUNCS = dict()
+
 def import_keys(fpath):
     with open(fpath, "r") as f:
         data = f.read()
@@ -43,28 +45,77 @@ def tupac(binary, floc_beg, key):
     PACKED.append(floc_beg)
     return patched
 
+
+def get_symbol_info(binary, symbol):
+    t = subprocess.check_output(
+        "readelf -s {:s} | grep -E '{:s}' | awk '{{print $2 \"_\" $3}}'".format(binary, symbol),
+        shell=True).strip().split('_')
+    # Return offset, size
+    return int(t[0], 16), int(t[1], 16)
+
+
+def read_binary(file):
+    # Init the constants
+    global FUNCS
+    FUNCS['reverse_jump'] = get_symbol_info(file, 'reverse_jump')
+
+    # Read the binary
+    with open(file, "rb") as f:
+        return f.read()
+
+
+def bin_replace(data, before, after):
+    if len(before) != len(after):
+        print('/!\ WARNING: You are probably doing something shitty')
+    where = data.find(before)
+    off = where + len(before)
+    return data[:where] + after + data[off:]
+
+
+def tupac_invert_jumps(data, idx, script):
+    for i in range(FUNCS['reverse_jump'][1]):
+        val = struct.unpack('B', data[idx + i])[0] # Thank you Python2... Lol.
+        if val == 0x7c:
+            print('[2PAC] Replacing jumps at 0x{:x}'.format(idx + i))
+            data = bin_replace(data, '\x7c', '\x7d')
+            with open(script, 'a') as f:
+                f.write("b {} {}\n".format(idx + i, FUNCS['reverse_jump'][0]))
+    return data
+
+
 def main():
-    with open("main", "rb") as f:
-        binary = f.read()
+    DBG_SCRIPT = "dbg/2pac.debugging_script"
+    IN_BINARY = "main"
+    DST_BINARY = "2pac_main"
+    binary = read_binary(IN_BINARY)
+    with open(DBG_SCRIPT, "w") as f:
+        f.write('')
+
+    # Find keys and unpack
     keys = import_keys("include/gen/rc4_keys.txt")
     bookmark = binary.find(TUPAC_BEG_MARKER)
     while bookmark != -1:
         while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
             bookmark -= 1
+
+        # Invert some jumps, for fun, just before encryption
+        binary = tupac_invert_jumps(binary, bookmark, DBG_SCRIPT)
+
         binary = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
         bookmark = binary.find(TUPAC_BEG_MARKER, bookmark + 1)
         assert(bookmark == -1)
         break
 
-    DBG_SCRIPT = "dbg/2pac.debugging_script"
-    with open("2pac_main", "wb") as f:
-        f.write(binary)
-
     # Get address of unpacking routine
-    unpacker = int(subprocess.check_output("readelf -s main | grep -E 'unpack$' | awk '{print $2}' | sed -re 's|^0+||'", shell=True), 16)
-    with open(DBG_SCRIPT, 'w') as f:
+    unpacker, _ = get_symbol_info(IN_BINARY, 'unpack$')
+    with open(DBG_SCRIPT, 'a') as f:
         for func_addr in PACKED:
             f.write("b {} {}\n".format(func_addr, unpacker))
+
+    # Everything is done, write the binary and add a continue to the script
+    with open(DST_BINARY, "wb") as f:
+        f.write(binary)
+    with open(DBG_SCRIPT, 'a') as f:
         f.write("c\n")
 
 if __name__ == '__main__':

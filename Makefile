@@ -25,6 +25,7 @@ release: $(EXEC)
 $(EXEC): $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
 	python2 ./script/2pac.py $(EXEC)
+	mv $(EXEC) $(EXEC).old
 	mv 2pac_$(EXEC) $(EXEC)
 	chmod +x $(EXEC)
 

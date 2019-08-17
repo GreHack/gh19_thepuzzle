@@ -52,6 +52,12 @@ void father(int child_pid, char *script_path)
 			if (sig == SIGTRAP) {
 				fprintf(stderr, "BP hit: %p\n", regs->rip);
 				dbg_break_handle(regs->rip);
+			} else if (sig == SIGSEGV) {
+				fprintf(stderr, "Sorry, but it looks like there was a segfault here!\n");
+				exit(1);
+			} else {
+				fprintf(stderr, "Unhandled signal!\n");
+				exit(1);
 			}
 		} else if (WIFCONTINUED(status)) {
 			printf("continued\n");

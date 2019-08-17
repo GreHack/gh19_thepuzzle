@@ -3,6 +3,7 @@
 
 /* defines NKEY and KLEN */
 #include "gen/rc4_consts.txt"
+#include <stdint.h>
 
 static char rc4_keys[NKEY][KLEN] = {
 	/* import keys from file */
@@ -10,5 +11,6 @@ static char rc4_keys[NKEY][KLEN] = {
 };
 
 int unpack(long pid, int offset);
+void reverse_jump(uint64_t addr);
 
 #endif
