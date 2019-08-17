@@ -15,7 +15,7 @@ def import_keys(fpath):
     i = 0
     while i < len(data) - 1:
         if data[i] == '\\' and data[i+1] == 'x':
-	    data = data[:i] + chr(int(data[i+2:i+4], 16)) + data[i+4:]
+            data = data[:i] + chr(int(data[i+2:i+4], 16)) + data[i+4:]
 	i += 1
     return map(lambda s: s[1:-1], data.split(",\n"))
 
@@ -43,27 +43,29 @@ def tupac(binary, floc_beg, key):
     PACKED.append(floc_beg)
     return patched
 
-with open("main", "rb") as f:
-    binary = f.read()
+def main():
+    with open("main", "rb") as f:
+        binary = f.read()
+    keys = import_keys("include/gen/rc4_keys.txt")
+    bookmark = binary.find(TUPAC_BEG_MARKER)
+    while bookmark != -1:
+        while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
+            bookmark -= 1
+        binary = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
+        bookmark = binary.find(TUPAC_BEG_MARKER, bookmark + 1)
+        assert(bookmark == -1)
+        break
 
-keys = import_keys("include/gen/rc4_keys.txt")
+    DBG_SCRIPT = "dbg/2pac.debugging_script"
+    with open("2pac_main", "wb") as f:
+        f.write(binary)
 
-bookmark = binary.find(TUPAC_BEG_MARKER)
-while bookmark != -1:
-    while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
-        bookmark -= 1
-    binary = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
-    bookmark = binary.find(TUPAC_BEG_MARKER, bookmark + 1)
-    assert(bookmark == -1)
-    break
+    # Get address of unpacking routine
+    unpacker = int(subprocess.check_output("readelf -s main | grep -E 'unpack$' | awk '{print $2}' | sed -re 's|^0+||'", shell=True), 16)
+    with open(DBG_SCRIPT, 'w') as f:
+        for func_addr in PACKED:
+            f.write("b {} {}\n".format(func_addr, unpacker))
+        f.write("c\n")
 
-with open("2pac_main", "wb") as f:
-    f.write(binary)
-
-# Get address of unpacking routine
-unpacker = int(subprocess.check_output("readelf -s main | grep -E 'unpack$' | awk '{print $2}' | sed -re 's|^0+||'", shell=True), 16)
-
-with open("dbg/2pac.debugging_script", 'w') as f:
-    for func_addr in PACKED:
-        f.write("b {} {}\n".format(func_addr, unpacker))
-    f.write("c\n")
+if __name__ == '__main__':
+    main()

@@ -61,7 +61,7 @@ void father(int child_pid, char *script_path)
 	free(regs);
 }
 
-int main(int argc, char **argv)
+void test_frky_ocr()
 {
 	img_t *screenshot = screen_capture();
 #if DEBUG
@@ -71,17 +71,19 @@ int main(int argc, char **argv)
 	ocr_from_img(ocr, screenshot);
 	// call ocr_recognize(ocr, img) to recognize a number on an image
 	// for now, image must be of 28x28 pix FIXME
-	return 0;
+	exit(0);
+}
 
-	int father_pid = getpid();
-
-	// Delete me if you don't want this :)
-	return 0;
+int main(int argc, char **argv)
+{
+	//test_frky_ocr();
 	
 	if (argc < 3) {
 		fprintf(stderr, "usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);
 		exit(1);
 	}
+
+	int father_pid = getpid();
 
 	if (strncmp(".debugging_script", argv[1] + (strlen(argv[1]) - 17), 17) != 0) {
 		fprintf(stderr, "unknown extension for first argument -- aborting\n");
