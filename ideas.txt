@@ -1,0 +1,16 @@
+- Ajouter des labels dans les scripts de debug
+- Packer: Faire un packer qui inverse juste tous les bytes de la fonction (Marrant non ?)
+- jumps -> set les adresses a 0
+  -> repatch avec write memory dans le debugger
+  -> repatch avec breakpoint et handler de fonction
+- Modifier les flags (pour les jumps, hihi)
+- Ajouter une commande dans l'interpreteur qui n'est jamais utilisee
+  (Crash IDA par exemple)
+- Inversion de registres
+- Modification de registres
+- Faire un timer dans le fils
+  -> Quand ca expire, appelle un handler
+  -> Le pere met un bp dans ce handler, des qu'il est hit, il se suicide
+- Chiffrer le script de debug
+- Chiffrer le tableau de cle RC4 (unpacking) avec une cle dans le script de debug
+
