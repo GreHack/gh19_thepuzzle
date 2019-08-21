@@ -248,6 +248,9 @@ void dbg_parse_script(char *script) {
 	size_t nb = 0;
 	/* Open script file */
 	FILE *script_fd = fopen(script, "r");
+	if (!script_fd) {
+		return;
+	}
 	/* Read file content line by line */
 	while (getline(&line, &nb, script_fd) != -1) {
 		dbg_parse_command(line);

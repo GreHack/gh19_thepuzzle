@@ -80,7 +80,7 @@ char *rc4_get_key(char *mem)
 	return NULL;
 }
 
-int unpack(long pid, int offset)
+int unpack(uint64_t offset)
 {
 	char *mem = dbg_read_mem(offset, 0x1000);
 	int i = 0;
@@ -121,8 +121,12 @@ int unpack(long pid, int offset)
 	return 0;
 }
 
-void reverse_jump(uint64_t addr)
+void reverse_jump(uint64_t offset)
 {
-	fprintf(stderr, "[INFO] Reversing jump at %p!\n", (void *) addr);
+	// Okay so it's kinda ugly but anyway
+	// We wrote a CC (or FF after unpacking) at this location,
+	// so let's just tell the debugger it's a 0x7c
+	fprintf(stderr, "[INFO] Reversing jump at %p!\n", (void *) offset);
+	dbg_breakpoint_set_original_data(offset, 0x7c);
 }
 

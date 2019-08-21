@@ -340,6 +340,25 @@ void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size)
 	}
 }
 
+/*
+ * Replace a breakpoint original data
+ */
+void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data)
+{
+
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr == offset + g_baddr) {
+			bp->orig_data = data;
+			break;
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+}
+
 void dbg_break_handle(uint64_t rip)
 {
 	dbg_bp_node *ptr = breakpoints;
@@ -359,8 +378,8 @@ void dbg_break_handle(uint64_t rip)
 
 	if (bp->handler) {
 		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
-		int (*handler_func)(long, int) = g_baddr + bp->handler;
-		handler_func(g_pid, rip - g_baddr - 1);
+		int (*handler_func)(uint64_t) = g_baddr + bp->handler;
+		handler_func(rip - g_baddr - 1);
 	}
 
 	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");

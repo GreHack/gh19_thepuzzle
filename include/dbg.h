@@ -29,6 +29,7 @@ struct user_regs_struct *dbg_get_regs(void);
 void dbg_set_regs(struct user_regs_struct *regs);
 void dbg_break_handle(uint64_t rip);
 void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size);
+void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data);
 
 
 /* dbg_parser.c */

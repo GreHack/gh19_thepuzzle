@@ -10,7 +10,7 @@ static char rc4_keys[NKEY][KLEN] = {
 	#include "gen/rc4_keys.txt"
 };
 
-int unpack(long pid, int offset);
+int unpack(uint64_t offset);
 void reverse_jump(uint64_t addr);
 
 #endif

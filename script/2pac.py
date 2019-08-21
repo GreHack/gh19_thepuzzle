@@ -11,6 +11,8 @@ PACKED = list()
 
 FUNCS = dict()
 
+DBG_SCRIPT = "dbg/2pac.debugging_script"
+
 def import_keys(fpath):
     with open(fpath, "r") as f:
         data = f.read()
@@ -27,8 +29,12 @@ def tupac(binary, floc_beg, key):
     pac_beg = binary.find(TUPAC_BEG_MARKER, floc_beg + 1)
     pac_end = binary.find(TUPAC_END_MARKER, pac_beg + len(TUPAC_BEG_MARKER))
     floc_end = binary.find("\xc3", pac_end + len(TUPAC_END_MARKER))
-    patched = str(binary)
+
+    # Invert some jumps, for fun, just before encryption
+    binary = tupac_invert_jumps(binary, floc_beg, floc_end, DBG_SCRIPT)
+
     # Nop the markers
+    patched = str(binary)
     for i in xrange(pac_beg, pac_beg + len(TUPAC_BEG_MARKER)):
         assert(patched[i] == TUPAC_BEG_MARKER[i - pac_beg])
         patched = patched[:i] + '\x90' + patched[i+1:]
@@ -72,19 +78,19 @@ def bin_replace(data, before, after):
     return data[:where] + after + data[off:]
 
 
-def tupac_invert_jumps(data, idx, script):
-    for i in range(FUNCS['reverse_jump'][1]):
-        val = struct.unpack('B', data[idx + i])[0] # Thank you Python2... Lol.
+def tupac_invert_jumps(data, floc_beg, floc_end, script):
+    size = floc_end - floc_beg
+    for i in range(size):
+        val = struct.unpack('B', data[floc_beg + i])[0] # Thank you Python2... Lol.
         if val == 0x7c:
-            print('[2PAC] Replacing jumps at 0x{:x}'.format(idx + i))
-            data = bin_replace(data, '\x7c', '\x7d')
+            print('[2PAC] Replacing jumps at 0x{:x}'.format(floc_beg + i))
+            data = bin_replace(data, '\x7c', '\xff') # We can put anything
             with open(script, 'a') as f:
-                f.write("b {} {}\n".format(idx + i, FUNCS['reverse_jump'][0]))
+                f.write("b {} {}\n".format(floc_beg + i, FUNCS['reverse_jump'][0]))
     return data
 
 
 def main():
-    DBG_SCRIPT = "dbg/2pac.debugging_script"
     IN_BINARY = "main"
     DST_BINARY = "2pac_main"
     binary = read_binary(IN_BINARY)
@@ -97,9 +103,6 @@ def main():
     while bookmark != -1:
         while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
             bookmark -= 1
-
-        # Invert some jumps, for fun, just before encryption
-        binary = tupac_invert_jumps(binary, bookmark, DBG_SCRIPT)
 
         binary = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
         bookmark = binary.find(TUPAC_BEG_MARKER, bookmark + 1)
