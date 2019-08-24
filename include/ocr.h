@@ -6,7 +6,7 @@
 
 #include "img.h"
 
-#define KD_TREE 0
+#define KD_TREE 1
 
 typedef struct {
 	img_t *img;
@@ -30,6 +30,6 @@ typedef struct {
 float ocr_dist(img_t *i1, img_t *i2);
 char ocr_recognize(ocr_t *ocr, img_t *img);
 ocr_t *ocr_train(char *label_path, char *data_path);
-ocr_from_img(ocr_t *ocr, img_t *img);
+void ocr_from_img(ocr_t *ocr, img_t *img);
 
 #endif

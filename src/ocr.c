@@ -19,6 +19,10 @@
 
 #define DEBUG 1
 
+#define R_W 28
+#define R_H 28
+#define FLAG_LEN 8
+#define WRECT_MIN_W FLAG_LEN * R_W
 
 /* Read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
@@ -30,6 +34,35 @@ unsigned int ocr_read_uint(FILE *fd)
 	return htonl(read_val);
 }
 
+void ocr_next_white_rectangle(img_t *img, unsigned int *h, unsigned int *w)
+{
+	pix_list_t *senti = img->wpix;
+	do {
+		if (!senti) {
+			break;
+		}
+		if (senti->h < *h || (senti->h == *h && senti->w < *w))
+			goto next;
+		if (senti->w + WRECT_MIN_W >= img->w || senti->h + R_H > img->h) 
+			goto next;
+		bool white = true;
+		for (unsigned int dw = senti->w; dw < senti->w + WRECT_MIN_W; dw++) {
+			white &= (img->pix[senti->h][dw] == 0);
+			white &= (img->pix[senti->h+R_H - 1][dw] == 0);
+		}
+		if (white) {
+			*h = senti->h; 
+			*w = senti->w;
+			return;
+		}
+next:
+		senti = senti->nxt;
+	} while (senti->nxt != img->wpix);
+	/* No more white rectangle */
+	*h = img->h;
+	*w = img->w;
+	return;
+}
 
 /* Check the magic number the beginning of a file */
 bool ocr_check_magic(FILE *fd, unsigned int magic)
@@ -80,7 +113,7 @@ void ocr_show_img_cli(img_t *img)
 {
 	for(unsigned int i = 0; i < img->h; i++) {
 		for (unsigned int j = 0; j < img->w; j++) {
-			if (img->pix[i][j] > 127) {
+			if (img->pix[i][j]) {
 				printf("x");
 			} else {
 				printf(" ");
@@ -128,7 +161,7 @@ char ocr_nearest_array(ocr_t *ocr, img_t *img)
 	printf("recognized: %c\n", closest->label);
 	ocr_show_img_cli(closest->img);
 #endif
-	if (dist < 4000000)
+	if (dist < 40000000)
 		return '!';
 	return closest->label;
 }
@@ -138,14 +171,17 @@ char ocr_nearest_array(ocr_t *ocr, img_t *img)
 char ocr_nearest_kd(ocr_t *ocr, img_t *img) // entry_t **entries, unsigned int nb_entries, img_t *img)
 {
 	entry_t *best;
-	float dist;
+	float dist = 40000000000000;
 	kd_search(ocr, img, &best, &dist);
-#if DEBUG
+#if 0 // DEBUG
 	ocr_show_img_cli(img);
 	printf("recognized: %c\n", best->label);
 	printf("dist: %f\n", ocr_dist(best->img, img));
 	ocr_show_img_cli(best->img);
 #endif
+	if (dist > 3000000)
+		return '!';
+	printf("dist: %f\n", ocr_dist(best->img, img));
 	return best->label;
 }
 
@@ -208,6 +244,7 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 	ocr->nb_entries = nb_label;
 	ocr->entries = entries;
 #endif
+	return ocr;
 #if DEBUG
 	for (unsigned int i = 0; i < 10; i++) {
 		entry_t *entry = ocr_read_one_entry(flabel, fdata, h, w);
@@ -221,26 +258,77 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 #endif
 }
 
-#define R_W 140
-#define R_H 140
-
-ocr_from_img(ocr_t *ocr, img_t *img)
+bool ocr_in_white_rectangle(img_t *img)
 {
-	fprintf(stderr, "H = %i ; W = %i\n", img->h, img->w);
-	for (int h = 0; h < img->h - R_H; h++) {
-		for (int w = 0; w < img->w - R_W; w++) {
-			img_t *cropped = img_crop(img, h, w, R_H, R_W);
-#if 0
-			reduced = img_reduce(cropped, 28, 28);
-			ocr_show_img_cli(reduced);
-			char c = ocr_recognize(ocr, reduced);
-			if (c != '!') {
-				fprintf("Recognized: %c\n", c);
-			}
-#else
-			ocr_show_img_cli(cropped);
-			img_free(cropped);
-#endif
+	for(unsigned int w = 0; w < img->w; w++) {
+		if (img->pix[0][w]) { // + img->pix[h][1] + img->pix[h][2] + img->pix[h][3])
+			return false;
 		}
+		if (img->pix[img->h - 1][w]) { //  + img->pix[h][img->w - 2] + img->pix[h][img->w - 3] + img->pix[h][img->w - 4])
+			return false;
+		}
+	}
+	return true;
+}
+
+bool ocr_fast_filter(img_t *img, unsigned int nb_pix, bool *in_white_rectangle)
+{
+	*in_white_rectangle = ocr_in_white_rectangle(img);
+	if (nb_pix < 50)
+		return false;
+	if (!in_white_rectangle)
+		return false; 
+	for(unsigned int w = 0; w < img->w; w++) {
+		if (img->pix[0][w] + img->pix[1][w] + img->pix[2][w] + img->pix[3][w])
+			return false;
+		if (img->pix[img->h - 1][w] + img->pix[img->h - 2][w] + img->pix[img->h - 3][w] + img->pix[img->h - 4][w])
+			return false;
+	}
+	for(unsigned int h = 0; h < img->h; h++) {
+		if (img->pix[h][0] + img->pix[h][1] + img->pix[h][2] + img->pix[h][3])
+			return false;
+		if (img->pix[h][img->w - 1] + img->pix[h][img->w - 2] + img->pix[h][img->w - 3] + img->pix[h][img->w - 4])
+			return false;
+	}
+	return true;
+}
+
+void ocr_from_img(ocr_t *ocr, img_t *img)
+{
+	unsigned int h = 0, w = 0;
+	bool in_white_rectangle;
+	while (h < img->h - R_H && w < img->w - R_W) {
+		unsigned int nb_pix;
+		img_t *cropped = img_crop(img, h, w, R_H, R_W, &nb_pix);
+#if 0
+		reduced = img_reduce(cropped, 28, 28);
+		ocr_show_img_cli(reduced);
+		char c = ocr_recognize(ocr, reduced);
+#else
+		if (!ocr_fast_filter(cropped, nb_pix, &in_white_rectangle)) {
+			img_free(cropped);
+			w++;
+			if (w + R_W == img->w) {
+				w = 0;
+				h++;
+			}
+			if (!in_white_rectangle) {
+				ocr_next_white_rectangle(img, &h, &w);
+			}
+			continue;
+		}
+		char c = ocr_recognize(ocr, cropped);
+		if (c != '!') {
+			fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", c, nb_pix);
+			ocr_show_img_cli(cropped);
+			w += 15;
+		}
+		img_free(cropped);
+		w++;
+		if (w + R_W == img->w) {
+			w = 0;
+			h++;
+		}
+#endif
 	}
 }

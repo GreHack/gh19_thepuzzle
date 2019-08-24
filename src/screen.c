@@ -14,12 +14,14 @@ img_t *screen_convert_to_img(char *data, int width, int height)
 	img_t *img = (img_t *) malloc(sizeof(img_t));
 	img->h = height;
 	img->w = width;
+	img->nb_wpix = 0;
+	img->wpix = NULL;
 	img->pix = (pix_t **) malloc(height * sizeof(pix_t *));
 	for (int dh = 0; dh < height; dh++) {
 		img->pix[dh] = (pix_t *) malloc(width * sizeof(pix_t));
 		for (int dw = 0; dw < width; dw++) {
 			char *imgpix = data + dh * width * 4 + dw * 4;
-			img_rgb_to_pix(&(img->pix[dh][dw]), *(imgpix + 2), *(imgpix + 1), *(imgpix + 0));
+			img_set_pix(img, dh, dw, *(imgpix + 2), *(imgpix + 1), *(imgpix + 0));
 		}
 	}
 	return img;
