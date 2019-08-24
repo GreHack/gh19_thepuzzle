@@ -251,8 +251,18 @@ void dbg_parse_script(char *script) {
 	if (!script_fd) {
 		return;
 	}
+
+	const char func_begin[] = "begin ";
+
 	/* Read file content line by line */
 	while (getline(&line, &nb, script_fd) != -1) {
+		if (!strncmp(func_begin, line, sizeof(func_begin) - 1)) {
+			if (dbg_register_function(line, script_fd)) {
+				continue;
+			} else {
+				dbg_die("Err... Error while parsing script!\n");
+			}
+		}
 		dbg_parse_command(line);
 		if (line) {
 			free(line);

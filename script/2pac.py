@@ -95,7 +95,7 @@ def main():
     DST_BINARY = "2pac_main"
     binary = read_binary(IN_BINARY)
     with open(DBG_SCRIPT, "w") as f:
-        f.write('')
+        f.write('begin myfunc\nb 1234 1234\nend\n')
 
     # Find keys and unpack
     keys = import_keys("include/gen/rc4_keys.txt")

@@ -4,6 +4,7 @@
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdint.h>
@@ -30,6 +31,7 @@ void dbg_set_regs(struct user_regs_struct *regs);
 void dbg_break_handle(uint64_t rip);
 void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size);
 void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data);
+bool dbg_register_function(const char* firstline, FILE *fileptr);
 
 
 /* dbg_parser.c */

@@ -29,6 +29,16 @@ typedef struct debug_breakpoint_node_t {
 /* Our breakpoints list head */
 dbg_bp_node *breakpoints = NULL;
 
+/* Structures for user specified debugger functions */
+typedef struct dbg_function_line_t {
+	char line[256];
+	struct dbg_function_line_t *next;
+} dbg_function_line;
+typedef struct {
+	char name[64];
+	dbg_function_line *firstline;
+} dbg_function;
+
 static void bp_node_append(dbg_bp *data) {
 	if (!breakpoints) {
 		breakpoints = malloc(sizeof(dbg_bp_node));
@@ -385,3 +395,50 @@ void dbg_break_handle(uint64_t rip)
 	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
 	dbg_continue((bp->handler + g_baddr) != unpack);
 }
+
+
+bool dbg_register_function(const char* firstline, FILE *fileptr)
+{
+	dbg_function *func = calloc(1, sizeof(dbg_function));
+	const char func_end[] = "end";
+
+	// Set function name
+	char *funcnameptr = strrchr(firstline, ' ') + 1;
+	strncpy(func->name, funcnameptr, sizeof(func->name));
+	/// Replace \n with \0
+	funcnameptr = func->name;
+	while (*funcnameptr) {
+		if (*funcnameptr == '\n') {
+			*funcnameptr = '\0';
+		}
+		funcnameptr++;
+	}
+	/// Make sure it ends with a nullbyte
+	func->name[sizeof(func->name) - 1] = '\0';
+
+	// Parse the rest of the file
+	char *line = NULL;
+	size_t nb;
+
+	dbg_function_line **prevline = &func->firstline;
+	while (getline(&line, &nb, fileptr) != -1) {
+		// We reached the end of the function, parsing was successful
+		if (!strncmp(func_end, line, sizeof(func_end) - 1)) {
+			return true;
+		}
+
+		dbg_function_line *fline = calloc(1, sizeof(dbg_function_line));
+		strncpy(fline->line, line, sizeof(dbg_function_line));
+		*prevline = fline;
+		prevline = &fline->next;
+
+		if (line) {
+			free(line);
+			line = NULL;
+			nb = 0;
+		}
+	}
+
+	return false;
+}
+
