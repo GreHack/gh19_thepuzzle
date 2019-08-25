@@ -21,7 +21,7 @@
 /* dbg.c */
 void dbg_attach(int pid);
 void dbg_break(void *addr);
-void dbg_break_handler(void *addr, void *handler);
+void dbg_break_handler(void *addr, void *handler, const char *uhandler);
 void dbg_continue(bool restore);
 char *dbg_read_mem(int offset, int nb_bytes);
 void dbg_write_mem(int offset, int nb_bytes, char *data);

@@ -7,11 +7,17 @@
 #include <stdio.h>
 #include <string.h>
 
+void useless_function()
+{
+	int c = 1 + 3;
+}
+
 /*
  * This is the debuggee, our child process.
  */
 void child(char *flag, int len)
 {
+	useless_function();
 	if (check_flag(flag, len))
 		printf("congrats, I guess...\n");
 	else

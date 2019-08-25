@@ -19,6 +19,7 @@ typedef struct debug_breakpoint_t {
 	uint64_t addr; // Must be an actual memory address, not an offset
 	uint8_t orig_data;
 	uint64_t handler; // TODO Maybe use a memory address as well to be consistent with addr
+	const char *uhandler; // User defined function for handling a bp
 } dbg_bp;
 
 typedef struct debug_breakpoint_node_t {
@@ -34,10 +35,14 @@ typedef struct dbg_function_line_t {
 	char line[256];
 	struct dbg_function_line_t *next;
 } dbg_function_line;
-typedef struct {
+typedef struct dbg_function_t {
 	char name[64];
 	dbg_function_line *firstline;
+	struct dbg_function_t *next;
 } dbg_function;
+
+/* Our user defined functions list head */
+dbg_function *functions = NULL;
 
 static void bp_node_append(dbg_bp *data) {
 	if (!breakpoints) {
@@ -134,14 +139,14 @@ void dbg_attach(int pid)
  */
 void dbg_break(void *addr)
 {
-	dbg_break_handler(addr, NULL);
+	dbg_break_handler(addr, NULL, NULL);
 }
 
 /*
  * Add a breakpoint with its handler function.
  * Note: Both are offsets because of PIE, not actual VA
  */
-void dbg_break_handler(void *addr, void *handler)
+void dbg_break_handler(void *addr, void *handler, const char *uhandler)
 {
 	// Because of PIE, we add the base address to the target addr
 	addr = g_baddr + addr;
@@ -158,6 +163,20 @@ void dbg_break_handler(void *addr, void *handler)
 	bp->addr = (uint64_t) addr;
 	bp->orig_data = trap & 0xff;
 	bp->handler = (uint64_t) handler;
+	if (uhandler) {
+		// Copy handler name and remove newline
+		bp->uhandler = strdup(uhandler); // TODO Free me
+		char *tmp = bp->uhandler;
+		while (*tmp) {
+			if (*tmp == '\n') {
+				*tmp = '\0';
+				break;
+			}
+			tmp++;
+		}
+	} else {
+		bp->uhandler = NULL;
+	}
 	bp_node_append(bp);
 
 	// Add a int3 instruction (0xcc *is* the INT3 instruction)
@@ -342,7 +361,7 @@ void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size)
 			void *addr = (void *) bp->addr;
 			// Delete breakpoint, and add it again
 			dbg_break_delete(addr);
-			dbg_break_handler(addr - g_baddr, handler);
+			dbg_break_handler(addr - g_baddr, handler, NULL);
 			fprintf(stderr, "[] HARD RESET BP AT %p\n", addr);
 		}
 		bp = NULL;
@@ -369,34 +388,6 @@ void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data)
 	}
 }
 
-void dbg_break_handle(uint64_t rip)
-{
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr == rip - 1) {
-			break;
-		}
-		bp = NULL;
-		ptr = ptr->next;
-	}
-	if (!bp) {
-		printf("WARNING: Expected a breakpoint but there was none heh");
-		return;
-	}
-
-	if (bp->handler) {
-		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
-		int (*handler_func)(uint64_t) = g_baddr + bp->handler;
-		handler_func(rip - g_baddr - 1);
-	}
-
-	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
-	dbg_continue((bp->handler + g_baddr) != unpack);
-}
-
-
 bool dbg_register_function(const char* firstline, FILE *fileptr)
 {
 	dbg_function *func = calloc(1, sizeof(dbg_function));
@@ -419,12 +410,14 @@ bool dbg_register_function(const char* firstline, FILE *fileptr)
 	// Parse the rest of the file
 	char *line = NULL;
 	size_t nb;
+	bool res = false;
 
 	dbg_function_line **prevline = &func->firstline;
 	while (getline(&line, &nb, fileptr) != -1) {
 		// We reached the end of the function, parsing was successful
 		if (!strncmp(func_end, line, sizeof(func_end) - 1)) {
-			return true;
+			res = true;
+			break;
 		}
 
 		dbg_function_line *fline = calloc(1, sizeof(dbg_function_line));
@@ -439,6 +432,70 @@ bool dbg_register_function(const char* firstline, FILE *fileptr)
 		}
 	}
 
-	return false;
+	// Add the function to functions list
+	if (res) {
+		if (!functions) {
+			functions = func;
+		} else {
+			dbg_function *f = functions;
+			while (f->next) {
+				f = f->next;
+			}
+			f->next = func;
+		}
+	}
+
+	return res;
+}
+
+static void dbg_function_call(const char *uhandler)
+{
+	dbg_function *fptr = functions;
+	while (fptr) {
+		// Execute the function
+		fprintf(stderr, "Func: %s\n", fptr->name);
+		if (!strcmp(uhandler, fptr->name)) {
+			dbg_function_line *line = fptr->firstline;
+			while (line) {
+				fprintf(stderr, "  -> %s", line->line);
+				dbg_parse_command(line);
+				line = line->next;
+			}
+		}
+
+		// Switch to next function
+		fptr = fptr->next;
+	}
+}
+
+void dbg_break_handle(uint64_t rip)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr == rip - 1) {
+			break;
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+	if (!bp) {
+		printf("WARNING: Expected a breakpoint but there was none heh");
+		return;
+	}
+
+	if (bp->handler) {
+		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
+		int (*handler_func)(uint64_t) = g_baddr + bp->handler;
+		handler_func(rip - g_baddr - 1);
+	}
+	if (bp->uhandler) {
+		printf(">>>>>> CALLING USER HANDLER '%s'!\n", bp->uhandler);
+		dbg_function_call(bp->uhandler);
+	}
+
+	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
+	dbg_continue((bp->handler + g_baddr) != unpack);
 }
 

@@ -119,6 +119,7 @@ def main():
     with open(DST_BINARY, "wb") as f:
         f.write(binary)
     with open(DBG_SCRIPT, 'a') as f:
+        f.write('bh {} myfunc\n'.format(get_symbol_info(IN_BINARY, 'useless_function')[0]))
         f.write("c\n")
 
 if __name__ == '__main__':

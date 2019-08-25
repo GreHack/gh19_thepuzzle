@@ -9,3 +9,4 @@ main.old
 include/gen/*.txt
 script/*.pyc
 data/
+.gdbinit

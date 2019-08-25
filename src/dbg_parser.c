@@ -224,6 +224,7 @@ void dbg_parse_command(const char* input)
 	// fprintf(stderr, "Read (init): %s\n", token_name[CURRENT_TOKEN]);
 
 	// Get the command
+	// TODO The long name joke is probably not a good idea, wdyt?
 	if (!strncmp(word, "CreateBreakpointAtAddress", len) ||
 			!strncmp(word, "b", len)) {
 		// Break command takes two arguments
@@ -231,8 +232,18 @@ void dbg_parse_command(const char* input)
 		uint64_t bp_handler = 0;
 		dbg_parse_expr(&bp_addr);
 		dbg_parse_expr(&bp_handler);
-		dbg_break_handler((void *) bp_addr, (void *) bp_handler);
+		dbg_break_handler((void *) bp_addr, (void *) bp_handler, NULL);
 		fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
+	}
+	else if (!strncmp(word, "CreateBreakpointAtAddressWithHandler", len) ||
+			!strncmp(word, "bh", len)) {
+		// Break command takes two arguments
+		uint64_t bp_addr = 0;
+		dbg_parse_expr(&bp_addr);
+		char handler_name[32];
+		strncpy(handler_name, p, sizeof(handler_name));
+		dbg_break_handler((void *) bp_addr, NULL, handler_name);
+		fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function %s\n", handler_name);
 	}
 	else if (!strncmp(word, "ContinueProcess", len) ||
 			!strncmp(word, "c", len)) {
