@@ -35,7 +35,17 @@ void img_add_white_pix(img_t *img, unsigned int h, unsigned int w)
 	return;
 }
 
-void img_set_pix(img_t *img, unsigned int h, unsigned int w, unsigned char r, unsigned char g, unsigned char b)
+void img_set_pix(img_t *img, unsigned int h, unsigned int w, pix_t pix)
+{
+	img->pix[h][w] = pix;
+	if (pix == 0) {
+		/* Add a white pixel to the image */
+		img_add_white_pix(img, h, w);
+	}
+	return;
+}
+
+void img_set_pix_rgb(img_t *img, unsigned int h, unsigned int w, unsigned char r, unsigned char g, unsigned char b)
 {
 	pix_t pix = img_rgb_to_pix(&(img->pix[h][w]), r, g, b);
 	if (pix == 0) {
@@ -54,15 +64,23 @@ void img_free(img_t *img)
 	free(img);
 }
 
+img_t *img_alloc(unsigned int h, unsigned int w)
+{
+	img_t *img = (img_t *) malloc(sizeof(img_t));
+	img->h = h;
+	img->w = w;
+	img->pix = (pix_t **) malloc(h * sizeof(pix_t *));
+	for (unsigned int dh = 0; dh < h; dh++) {
+		img->pix[dh] = (pix_t *) malloc(w * sizeof(pix_t));
+	}
+	return img;
+}
+
 img_t *img_crop(img_t *img, unsigned int h, unsigned int w, unsigned int dh, unsigned int dw, unsigned int *nb_pix)
 {
-	img_t *cropped = (img_t *) malloc(sizeof(img_t));
+	img_t *cropped = img_alloc(dh, dw);
 	*nb_pix = 0;
-	cropped->h = dh;
-	cropped->w = dw;
-	cropped->pix = (pix_t **) malloc(dh * sizeof(pix_t *));
 	for (unsigned int y = h; y < h + dh; y++) {
-		cropped->pix[y - h] = (pix_t *) malloc(dw * sizeof(pix_t));
 		for (unsigned int x = w; x < w + dw; x++) {
 			unsigned char p = img->pix[y][x];
 			cropped->pix[y - h][x - w] = p;
@@ -83,3 +101,20 @@ void img_to_file(img_t *img, char *filepath)
 	fclose(out);
 }
 #endif
+
+img_t *img_reduce(img_t *img, unsigned int ratio)
+{
+	img_t *new_img = img_alloc(img->h / ratio, img->w / ratio);
+	for (unsigned int dh = 0; dh < new_img->h; dh++) {
+		for (unsigned int dw = 0; dw < new_img->w; dw++) {
+			unsigned int val = 0;
+			for (unsigned int i = 0; i < ratio; i++) {
+				for (unsigned int j = 0; j < ratio; j++) {
+					val += img->pix[ratio * dh + i][ratio * dw + j];
+				}
+			}
+			img_set_pix(new_img, dh, dw, val / (ratio*ratio));
+		}
+	}
+	return new_img;
+}

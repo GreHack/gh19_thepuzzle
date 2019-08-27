@@ -19,10 +19,10 @@
 
 #define DEBUG 1
 
-#define R_W 28
-#define R_H 28
+#define READ_W 28*2
+#define READ_H 28*2
 #define FLAG_LEN 8
-#define WRECT_MIN_W FLAG_LEN * R_W
+#define WRECT_MIN_W FLAG_LEN * READ_W
 
 /* Read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
@@ -43,12 +43,12 @@ void ocr_next_white_rectangle(img_t *img, unsigned int *h, unsigned int *w)
 		}
 		if (senti->h < *h || (senti->h == *h && senti->w < *w))
 			goto next;
-		if (senti->w + WRECT_MIN_W >= img->w || senti->h + R_H > img->h) 
+		if (senti->w + WRECT_MIN_W >= img->w || senti->h + READ_H > img->h) 
 			goto next;
 		bool white = true;
 		for (unsigned int dw = senti->w; dw < senti->w + WRECT_MIN_W; dw++) {
 			white &= (img->pix[senti->h][dw] == 0);
-			white &= (img->pix[senti->h+R_H - 1][dw] == 0);
+			white &= (img->pix[senti->h+READ_H - 1][dw] == 0);
 		}
 		if (white) {
 			*h = senti->h; 
@@ -297,38 +297,45 @@ void ocr_from_img(ocr_t *ocr, img_t *img)
 {
 	unsigned int h = 0, w = 0;
 	bool in_white_rectangle;
-	while (h < img->h - R_H && w < img->w - R_W) {
+	char input[9];
+	input[8] = '\0';
+	unsigned int input_len = 0;
+	while (h < img->h - READ_H && w < img->w - READ_W) {
+		fprintf(stderr, "%u:%u\n", h, w);
+		if (input_len == 8) {
+			fprintf(stderr, "input: %s\n", input);
+			break;
+		}
 		unsigned int nb_pix;
-		img_t *cropped = img_crop(img, h, w, R_H, R_W, &nb_pix);
-#if 0
-		reduced = img_reduce(cropped, 28, 28);
-		ocr_show_img_cli(reduced);
-		char c = ocr_recognize(ocr, reduced);
-#else
-		if (!ocr_fast_filter(cropped, nb_pix, &in_white_rectangle)) {
-			img_free(cropped);
+		img_t *cropped = img_crop(img, h, w, READ_H, READ_W, &nb_pix);
+		img_t *reduced = img_reduce(cropped, READ_H / 28);
+		img_free(cropped);
+		if (!ocr_fast_filter(reduced, nb_pix, &in_white_rectangle)) {
+			img_free(reduced);
 			w++;
-			if (w + R_W == img->w) {
+			if (w + READ_W == img->w) {
 				w = 0;
 				h++;
+				input_len = 0;
 			}
 			if (!in_white_rectangle) {
 				ocr_next_white_rectangle(img, &h, &w);
 			}
 			continue;
 		}
-		char c = ocr_recognize(ocr, cropped);
+		char c = ocr_recognize(ocr, reduced);
 		if (c != '!') {
 			fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", c, nb_pix);
-			ocr_show_img_cli(cropped);
+			ocr_show_img_cli(reduced);
 			w += 15;
+			input[input_len] = c;
 		}
-		img_free(cropped);
+		img_free(reduced);
 		w++;
-		if (w + R_W == img->w) {
+		if (w + READ_W == img->w) {
 			w = 0;
 			h++;
+				input_len = 0;
 		}
-#endif
 	}
 }

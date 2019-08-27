@@ -21,7 +21,7 @@ img_t *screen_convert_to_img(char *data, int width, int height)
 		img->pix[dh] = (pix_t *) malloc(width * sizeof(pix_t));
 		for (int dw = 0; dw < width; dw++) {
 			char *imgpix = data + dh * width * 4 + dw * 4;
-			img_set_pix(img, dh, dw, *(imgpix + 2), *(imgpix + 1), *(imgpix + 0));
+			img_set_pix_rgb(img, dh, dw, *(imgpix + 2), *(imgpix + 1), *(imgpix + 0));
 		}
 	}
 	return img;
