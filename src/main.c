@@ -77,7 +77,6 @@ void test_frky_ocr()
 	ocr_from_img(ocr, screenshot);
 	// call ocr_recognize(ocr, img) to recognize a number on an image
 	// for now, image must be of 28x28 pix FIXME
-	exit(0);
 }
 
 int main(int argc, char **argv)

@@ -61,6 +61,7 @@ void img_free(img_t *img)
 		free(img->pix[h]);
 	}
 	free(img->pix);
+    // TODO free linked list of white pixels
 	free(img);
 }
 
@@ -73,6 +74,7 @@ img_t *img_alloc(unsigned int h, unsigned int w)
 	for (unsigned int dh = 0; dh < h; dh++) {
 		img->pix[dh] = (pix_t *) malloc(w * sizeof(pix_t));
 	}
+    img->wpix = NULL;
 	return img;
 }
 

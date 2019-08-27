@@ -21,7 +21,7 @@
 
 #define READ_W 28*2
 #define READ_H 28*2
-#define FLAG_LEN 8
+#define FLAG_LEN 4
 #define WRECT_MIN_W FLAG_LEN * READ_W
 
 /* Read unsigned int from file (big endian) */
@@ -293,16 +293,27 @@ bool ocr_fast_filter(img_t *img, unsigned int nb_pix, bool *in_white_rectangle)
 	return true;
 }
 
+unsigned int ocr_w_last_pix(img_t *img)
+{
+    for (unsigned dw = img->w - 1; dw > 0; dw--) {
+        for (unsigned int dh = 0; dh < img->h; dh++) {
+            if (img->pix[dh][dw])
+                return dw;
+        }
+    }
+    return 0;
+}
+
 void ocr_from_img(ocr_t *ocr, img_t *img)
 {
 	unsigned int h = 0, w = 0;
 	bool in_white_rectangle;
-	char input[9];
-	input[8] = '\0';
+	char input[FLAG_LEN + 1];
+	input[FLAG_LEN] = '\0';
 	unsigned int input_len = 0;
 	while (h < img->h - READ_H && w < img->w - READ_W) {
-		fprintf(stderr, "%u:%u\n", h, w);
-		if (input_len == 8) {
+        fprintf(stderr, "%u:%u\n", h, w);
+		if (input_len == FLAG_LEN) {
 			fprintf(stderr, "input: %s\n", input);
 			break;
 		}
@@ -320,6 +331,7 @@ void ocr_from_img(ocr_t *ocr, img_t *img)
 			}
 			if (!in_white_rectangle) {
 				ocr_next_white_rectangle(img, &h, &w);
+                input_len = 0;
 			}
 			continue;
 		}
@@ -327,15 +339,17 @@ void ocr_from_img(ocr_t *ocr, img_t *img)
 		if (c != '!') {
 			fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", c, nb_pix);
 			ocr_show_img_cli(reduced);
-			w += 15;
+            w += ocr_w_last_pix(reduced) * (READ_H / 28);
 			input[input_len] = c;
+            input_len++;
 		}
 		img_free(reduced);
 		w++;
 		if (w + READ_W == img->w) {
 			w = 0;
 			h++;
-				input_len = 0;
+			input_len = 0;
 		}
 	}
+    return;
 }
