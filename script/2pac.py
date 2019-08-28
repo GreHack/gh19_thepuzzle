@@ -30,8 +30,8 @@ def tupac(binary, floc_beg, key):
     pac_end = binary.find(TUPAC_END_MARKER, pac_beg + len(TUPAC_BEG_MARKER))
     floc_end = binary.find("\xc3", pac_end + len(TUPAC_END_MARKER))
 
-    # Invert some jumps, for fun, just before encryption
-    binary = tupac_invert_jumps(binary, floc_beg, floc_end, DBG_SCRIPT)
+    # Invert some jumps, for fun, just before encryption (old style)
+    # binary = tupac_invert_jumps(binary, floc_beg, floc_end, DBG_SCRIPT)
 
     # Nop the markers
     patched = str(binary)
