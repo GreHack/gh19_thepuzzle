@@ -3,6 +3,8 @@ from random import randint, choice
 from rc4 import RC4_crypt 
 import struct
 import subprocess
+import string
+from os import chmod
 
 TUPAC_BEG_MARKER = "GiveUs2PacBack"
 TUPAC_END_MARKER = "LetTheLegendResurrect"
@@ -10,6 +12,7 @@ TUPAC_END_MARKER = "LetTheLegendResurrect"
 PACKED = list()
 
 FUNCS = dict()
+UFUNCS = list()
 
 DBG_SCRIPT = "dbg/2pac.debugging_script"
 
@@ -33,6 +36,15 @@ def tupac(binary, floc_beg, key):
     # Invert some jumps, for fun, just before encryption (old style)
     # binary = tupac_invert_jumps(binary, floc_beg, floc_end, DBG_SCRIPT)
 
+    # Convert str to array because fuck it
+    array = [ord(c) for c in binary]
+
+    # Replace jumps by a jump on themselves, because that's funny
+    tupac_delete_jump(array, floc_beg, floc_end, DBG_SCRIPT)
+
+    # Convert back array to str because fuck it
+    binary = ''.join(map(chr, array))
+
     # Nop the markers
     patched = str(binary)
     for i in xrange(pac_beg, pac_beg + len(TUPAC_BEG_MARKER)):
@@ -43,13 +55,26 @@ def tupac(binary, floc_beg, key):
         assert(patched[i] == TUPAC_END_MARKER[i - pac_end])
         patched = patched[:i] + '\x90' + patched[i+1:]
         assert(patched[i] == '\x90')
+
+    # Now pack the function
+    unpacked = str(patched)
     patched = patched[:floc_beg] + RC4_crypt(key, patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
+
     # print("after: " + patched[floc_beg:floc_end + 1].encode("hex"))
     # Pack the function
     ## for i in xrange(floc_beg, floc_end + 1):
     ##    patched = patched[:i] + chr(ord(patched[i]) ^ 0x42) + patched[i+1:]
     PACKED.append(floc_beg)
-    return patched
+    return patched, unpacked
+
+
+def gen_function_name():
+    while True:
+        name = ''.join(choice(string.ascii_lowercase) for _ in range(10))
+        if name in UFUNCS:
+            continue
+        UFUNCS.append(name)
+        yield name
 
 
 def get_symbol_info(binary, symbol):
@@ -90,12 +115,29 @@ def tupac_invert_jumps(data, floc_beg, floc_end, script):
     return data
 
 
+def tupac_delete_jump(data, floc_beg, floc_end, script):
+    size = floc_end - floc_beg
+    for i in range(floc_beg, floc_beg + size):
+        if data[i] == 0xeb:
+            original = data[i + 1]
+            jump_destination = 0xfe # randint(0, 0xff)
+            data[i + 1] = jump_destination
+            with open(script, 'a') as f:
+                funcname = next(gen_function_name())
+                f.write('begin {}\nw {} {}\nend\n'.format(funcname, i + 1, original))
+                f.write('bh {} {}\n'.format(i, funcname))
+                # TODO Must add another handler *AFTER* the jump so theses changes
+                # are not sensitive to memory dump
+            print('[2PAC] Deleting jump at 0x{:x} ({:x} -> {:x})'.format(i, original, data[i + 1]))
+
+
+
 def main():
     IN_BINARY = "main"
     DST_BINARY = "2pac_main"
     binary = read_binary(IN_BINARY)
     with open(DBG_SCRIPT, "w") as f:
-        f.write('begin myfunc\nb 1234 1234\nend\n')
+        f.write('')
 
     # Find keys and unpack
     keys = import_keys("include/gen/rc4_keys.txt")
@@ -104,8 +146,8 @@ def main():
         while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
             bookmark -= 1
 
-        binary = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
-        bookmark = binary.find(TUPAC_BEG_MARKER, bookmark + 1)
+        packed, unpacked = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
+        bookmark = packed.find(TUPAC_BEG_MARKER, bookmark + 1)
         assert(bookmark == -1)
         break
 
@@ -117,9 +159,11 @@ def main():
 
     # Everything is done, write the binary and add a continue to the script
     with open(DST_BINARY, "wb") as f:
-        f.write(binary)
+        f.write(packed)
+    with open(IN_BINARY + '.unpacked', 'wb') as f:
+        f.write(unpacked)
+    chmod(IN_BINARY + '.unpacked', 0755)
     with open(DBG_SCRIPT, 'a') as f:
-        f.write('bh {} myfunc\n'.format(get_symbol_info(IN_BINARY, 'useless_function')[0]))
         f.write("c\n")
 
 if __name__ == '__main__':

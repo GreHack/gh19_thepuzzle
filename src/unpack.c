@@ -82,7 +82,9 @@ char *rc4_get_key(char *mem)
 
 int unpack(uint64_t offset)
 {
-	char *mem = dbg_read_mem(offset, 0x1000);
+	dbg_breakpoint_disable(offset + 1, 0x1000);
+	uint8_t *mem = dbg_read_mem(offset, 0x1000);
+
 	int i = 0;
 	int state = 0;
 	/* Find correct key */
@@ -97,7 +99,7 @@ int unpack(uint64_t offset)
 	while (1) {
 		unsigned char x = rc4_stream(rstate);
 #if DEBUG
-		fprintf(stderr, "%02x ^ %02x -> ", (mem[i] & 0xFF), (x & 0xFF));
+		fprintf(stderr, "%06x: %02x ^ %02x -> ", offset + i, (mem[i] & 0xFF), (x & 0xFF));
 #endif
 		mem[i] ^= x;
 #if DEBUG
@@ -116,8 +118,9 @@ int unpack(uint64_t offset)
 	}
 	mem[0] = 0x55;
 	dbg_write_mem(offset, i+1, mem);
-	dbg_hard_reset_breakpoint(offset, i+1);
+	dbg_breakpoint_enable(offset + 1, 0x1000);
 	free(rstate);
+	free(mem);
 	return 0;
 }
 

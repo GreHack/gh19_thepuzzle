@@ -4,6 +4,7 @@ build/
 *.o
 main
 main.old
+main.unpacked
 .ccls
 .ccls-cache/
 include/gen/*.txt

@@ -243,11 +243,21 @@ void dbg_parse_command(const char* input)
 		char handler_name[32];
 		strncpy(handler_name, p, sizeof(handler_name));
 		dbg_break_handler((void *) bp_addr, NULL, handler_name);
-		fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function %s\n", handler_name);
+		fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function '%s'\n", bp_addr, handler_name);
 	}
 	else if (!strncmp(word, "ContinueProcess", len) ||
 			!strncmp(word, "c", len)) {
 		dbg_continue(true);
+	}
+	else if (!strncmp(word, "WriteMemoryAt", len) ||
+			!strncmp(word, "w", len)) {
+		// Break command takes two arguments
+		uint64_t offset = 0;
+		uint64_t what = 0;
+		dbg_parse_expr(&offset);
+		dbg_parse_expr(&what);
+		// TODO 1 is wrong here and &what as well
+		dbg_write_mem(offset, 1, &what);
 	}
 	else {
 		dbg_die("I don't understand what you say bro");

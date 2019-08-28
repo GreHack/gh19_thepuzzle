@@ -1,4 +1,7 @@
+# DONE
 - Ajouter des labels dans les scripts de debug
+
+# WIP
 - Packer: Faire un packer qui inverse juste tous les bytes de la fonction (Marrant non ?)
 - jumps -> set les adresses a 0
   -> repatch avec write memory dans le debugger

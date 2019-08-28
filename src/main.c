@@ -88,8 +88,8 @@ void test_frky_ocr()
 
 int main(int argc, char **argv)
 {
-	test_frky_ocr();
-	return 0;
+	//test_frky_ocr();
+	//return 0;
 
 	if (argc < 3) {
 		fprintf(stderr, "usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);

@@ -70,12 +70,12 @@ static bool bp_node_delete(dbg_bp *data) {
 	while (cur->next) {
 		if (cur->next->data == data) {
 			// Found the one, remove it
-			dbg_bp_node *next = cur->next;
+			dbg_bp_node *todelete = cur->next;
 			cur->next = cur->next->next;
-			if (next == breakpoints) {
+			if (todelete == breakpoints) {
 				breakpoints = cur->next;
 			}
-			free(next);
+			free(todelete);
 			return true;
 		}
 		cur = cur->next;
@@ -217,7 +217,7 @@ void dbg_continue(bool restore)
 {
 	struct user_regs_struct regs;
 	ptrace(PTRACE_GETREGS, g_pid, NULL, &regs);
-	fprintf(stderr, "Resuming at addr: 0x%llx\n", regs.rip);
+	fprintf(stderr, "Resuming at addr: 0x%llx (%06x)\n", regs.rip, regs.rip - g_baddr);
 
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
@@ -251,9 +251,9 @@ void dbg_continue(bool restore)
 		}
 		fprintf(stderr, "Current instruction: %lx\n", orig);
 		if (restore) {
-			fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
+			//fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
 			long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
-			fprintf(stderr, "OK, actually restoring original instr\n");
+			//fprintf(stderr, "OK, actually restoring original instr\n");
 			fprintf(stderr, "New instruction: %lx\n", newdata);
 			if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
 				dbg_die("Cannot modify the program instruction");
@@ -267,6 +267,7 @@ void dbg_continue(bool restore)
 		int status;
 		waitpid(g_pid, &status, 0);
 		if (!WIFSTOPPED(status) || WSTOPSIG(status) != SIGTRAP) {
+			fprintf(stderr, "Unexpected signal received: %s\n", strsignal(WSTOPSIG(status)));
 			dbg_die("WHAT THE FUCK WHY JOHN WHYYYYYYYY");
 		}
 
@@ -290,15 +291,25 @@ void dbg_continue(bool restore)
  * Read memory from the debuggee.
  * The returned buffer must be freed.
  */
-char *dbg_read_mem(int offset, int nb_bytes)
+uint8_t *dbg_read_mem(int offset, int nb_bytes)
 {
-	char *buffer = (char *) malloc(nb_bytes);
-	long ret;
+	// Make sure the requested amount of bytes is aligned
+	while (nb_bytes % sizeof(long)) {
+		nb_bytes++;
+	}
+	uint8_t *buffer = malloc(nb_bytes);
+	unsigned long ret;
 	void *addr = (void *) g_baddr + offset;
-	for (int i = 0; i < nb_bytes; i += 2) {
+	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
 		ret = ptrace(PTRACE_PEEKTEXT, g_pid, addr + i, 0);	
 		buffer[i] = ret & 0xFF;
-		buffer[i + 1] = ret >> 8;
+		buffer[i + 1] = (ret >>  8) & 0xFF;
+		buffer[i + 2] = (ret >> 16) & 0xFF;
+		buffer[i + 3] = (ret >> 24) & 0xFF;
+		buffer[i + 4] = (ret >> 32) & 0xFF;
+		buffer[i + 5] = (ret >> 40) & 0xFF;
+		buffer[i + 6] = (ret >> 48) & 0xFF;
+		buffer[i + 7] = (ret >> 56) & 0xFF;
 	}
 	return buffer;
 }
@@ -309,11 +320,34 @@ char *dbg_read_mem(int offset, int nb_bytes)
 void dbg_write_mem(int offset, int nb_bytes, char *data)
 {
 	void *addr = (void *) g_baddr + offset;
-	int dword;
-	for (int i = 0; i <= nb_bytes/4; i++) {
-		dword = ((int *) data)[i];
-		ptrace(PTRACE_POKETEXT, g_pid, addr + 4*i, dword);
+	unsigned long word;
+	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
+		int diff = nb_bytes - i;
+		if (diff < sizeof(long)) {
+			uint8_t *old_data = dbg_read_mem(offset + i, sizeof(long));
+			word = ((long *)old_data)[0];
+			word >>= diff * sizeof(long);
+			word <<= diff * sizeof(long);
+			unsigned long mask = *((unsigned long *) (data + i));
+			mask <<= (sizeof(long) - diff) * sizeof(long);
+			mask >>= (sizeof(long) - diff) * sizeof(long);
+			word |= mask;
+			free(old_data);
+		} else {
+			word = *((unsigned long *) (data + i));
+		}
+		//uint8_t *fu = dbg_read_mem(offset + i, nb_bytes);
+		//fprintf(stderr, "---------BEFORE WRITE: (%x) %016lx\n", offset + i, *((uint64_t*)fu));
+		//fprintf(stderr, "---------       WRITE:        %016lx\n", word);
+		ptrace(PTRACE_POKETEXT, g_pid, addr + i, word);
+		//fu = dbg_read_mem(offset + i, nb_bytes);
+		//fprintf(stderr, "----------AFTER WRITE: (%x) %016lx\n", offset + i, *((uint64_t*)fu));
 	}
+}
+
+void dbg_write_mem_va(uint64_t va, int nb_bytes, char *data)
+{
+	dbg_write_mem((int) (va - g_baddr), nb_bytes, data);
 }
 
 void dbg_show_mem(int offset, int len)
@@ -344,25 +378,34 @@ void dbg_set_regs(struct user_regs_struct *regs)
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
 }
 
-/*
- * If there was a breakpoint in the range [offset, offset+size], tell the debugger
- * to consider the current data as the old data for the breakpoint, and rewrite
- * the breakpoint
- */
-void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size)
+void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
 {
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
 	uint64_t va = g_baddr + offset;
 	while (ptr && ptr->next) {
 		bp = ptr->data;
-		if (bp->addr > va && bp->addr < (va + size)) {
-			void *handler = (void *) bp->handler;
-			void *addr = (void *) bp->addr;
-			// Delete breakpoint, and add it again
-			dbg_break_delete(addr);
-			dbg_break_handler(addr - g_baddr, handler, NULL);
-			fprintf(stderr, "[] HARD RESET BP AT %p\n", addr);
+		if (bp->addr >= va && bp->addr < (va + size)) {
+			// Disable the breakpoint
+			//fprintf(stderr, ":::::::::::::DISABLING BP\n");
+			dbg_write_mem_va(bp->addr, 1, &bp->orig_data);
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+}
+
+void dbg_breakpoint_enable(uint64_t offset, uint64_t size)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	uint64_t va = g_baddr + offset;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr >= va && bp->addr < (va + size)) {
+			// Enable the breakpoint
+			//fprintf(stderr, ":::::::::::::ENABLING BP\n");
+			dbg_write_mem_va(bp->addr, 1, "\xcc");
 		}
 		bp = NULL;
 		ptr = ptr->next;
@@ -453,14 +496,15 @@ static void dbg_function_call(const char *uhandler)
 	dbg_function *fptr = functions;
 	while (fptr) {
 		// Execute the function
-		fprintf(stderr, "Func: %s\n", fptr->name);
 		if (!strcmp(uhandler, fptr->name)) {
+			fprintf(stderr, "Executing Func: %s\n", fptr->name);
 			dbg_function_line *line = fptr->firstline;
 			while (line) {
 				fprintf(stderr, "  -> %s", line->line);
-				dbg_parse_command(line);
+				dbg_parse_command(line->line);
 				line = line->next;
 			}
+			break;
 		}
 
 		// Switch to next function
