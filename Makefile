@@ -18,6 +18,9 @@ DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
 SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 
+debug: CFLAGS += -D DEBUG -D DEBUG_MAIN
+debug: $(EXEC)
+
 release: CFLAGS += -D RELEASE
 release: $(EXEC)
 		
