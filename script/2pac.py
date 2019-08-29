@@ -148,8 +148,6 @@ def main():
 
         packed, unpacked = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
         bookmark = packed.find(TUPAC_BEG_MARKER, bookmark + 1)
-        assert(bookmark == -1)
-        break
 
     # Get address of unpacking routine
     unpacker, _ = get_symbol_info(IN_BINARY, 'unpack$')

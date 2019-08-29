@@ -14,7 +14,7 @@ def RC4_crypt(key, clear):
     i, j = 0, 0
     data = ""
     for b in map(ord, clear):
-        i += 1 % 256
+        i = (i + 1) % 256
         j = (j + s[i]) % 256
         s[i], s[j] = s[j], s[i]
         x = s[(s[i] + s[j]) % 256]
