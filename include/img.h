@@ -2,9 +2,8 @@
 #ifndef __IMG_H__
 #define __IMG_H__
 
+#include "global.h"
 #include <stdio.h>
-
-#define DEBUG 1
 
 typedef /* struct {
 	unsigned char r;
@@ -38,8 +37,11 @@ void img_set_pix_rgb(img_t *img, unsigned int h, unsigned int w, unsigned char r
 void img_free(img_t *img);
 img_t *img_crop(img_t *img, unsigned int h, unsigned int w, unsigned int dh, unsigned int dw, unsigned int *nb_pix);
 img_t *img_reduce(img_t *img, unsigned int ratio);
-#if DEBUG
+pix_t **img_allocate_pixels(unsigned int h, unsigned int w);
+#ifdef DEBUG
 void img_to_file(img_t *img, char *filepath);
+void img_show_cli(img_t *img); 
 #endif
+float img_dist(img_t *i1, img_t *i2);
 
 #endif
