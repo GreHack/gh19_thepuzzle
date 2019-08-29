@@ -16,7 +16,7 @@ void useless_function()
 /*
  * This is the debuggee, our child process.
  */
-void child(char *flag, int len)
+void child()
 {
 	img_t *screenshot = screen_capture();
 #ifdef DEBUG_MAIN
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 #endif
 			usleep(100);
 		}
-		child(argv[2], strlen(argv[2]));
+		child();
 	} else {
 #if DEBUG_MAIN
 		fprintf(stderr, "Father created: %d, child is: %d\n", father_pid, child_pid);
