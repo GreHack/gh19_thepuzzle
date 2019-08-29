@@ -1,5 +1,5 @@
 
-#include "ocr.h"
+#include "packed/ocr.h"
 
 /* This will confuse people */
 #include <arpa/inet.h>
@@ -35,10 +35,12 @@
 /* read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
 {
+    TUPAC_BEG
 	unsigned int read_val;
 	if (fread(&read_val, sizeof(unsigned int), 1, fd) != 1) {
 		exit(1);
 	}
+    TUPAC_END
 	return htonl(read_val);
 }
 

@@ -11,8 +11,8 @@ LDFLAGS=-lX11 -lm
 
 all: $(EXEC)
 
-_DEPS=core.h dbg.h unpack.h screen.h packed/hello.h gen/rc4_consts.txt gen/rc4_keys.txt ocr.h kdtree.h img.h
-_SRC=$(EXEC).c dbg.c unpack.c packed/hello.c dbg_parser.c screen.c ocr.c kdtree.c img.c
+_DEPS=core.h dbg.h unpack.h screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt kdtree.h img.h
+_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c screen.c kdtree.c img.c
 _OBJ=$(_SRC:.c=.o)
 DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))

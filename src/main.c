@@ -1,27 +1,38 @@
 #include "core.h"
 #include "dbg.h"
-#include "ocr.h"
 #include "screen.h"
 #include "unpack.h"
-#include "packed/hello.h"
+#include "packed/ocr.h"
 #include <stdio.h>
 #include <string.h>
 
+#if 0
 void useless_function()
 {
 	int c = 1 + 3;
 }
+#endif
 
 /*
  * This is the debuggee, our child process.
  */
 void child(char *flag, int len)
 {
+	img_t *screenshot = screen_capture();
+#ifdef DEBUG_MAIN
+	img_to_file(screenshot, "/tmp/out.ppm");
+#endif
+	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
+#if DEBUG_MAIN
+	fprintf(stderr, "user input: %s\n", ocr_read_flag(ocr, screenshot));
+#endif
+#if 0
 	useless_function();
 	if (check_flag(flag, len))
 		printf("congrats, I guess...\n");
 	else
 		printf("nope...\n");
+#endif
 }
 
 /*
@@ -73,22 +84,9 @@ void father(int child_pid, char *script_path)
 	free(regs);
 }
 
-void test_frky_ocr()
-{
-	img_t *screenshot = screen_capture();
-#ifdef DEBUG_MAIN
-	img_to_file(screenshot, "/tmp/out.ppm");
-#endif
-	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
-	fprintf(stderr, "user input: %s\n", ocr_read_flag(ocr, screenshot));
-}
-
 int main(int argc, char **argv)
 {
-	//test_frky_ocr();
-	//return 0;
-
-	if (argc < 3) {
+	if (argc < 2) {
 		fprintf(stderr, "usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);
 		exit(1);
 	}
@@ -104,12 +102,16 @@ int main(int argc, char **argv)
 	if (!child_pid) {
 		/* Wait to leave some time to attach */
 		for (int i = 0; i < 2; i++) {
-			printf("Hello %d!\n", i);
+#if DEBUG_MAIN
+			fprintf(stderr, "Hello %d!\n", i);
+#endif
 			usleep(100);
 		}
 		child(argv[2], strlen(argv[2]));
 	} else {
-		printf("Father created: %d, child is: %d\n", father_pid, child_pid);
+#if DEBUG_MAIN
+		fprintf(stderr, "Father created: %d, child is: %d\n", father_pid, child_pid);
+#endif
 		father(child_pid, argv[1]);
 	}
 

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 #include "img.h"
-#include "ocr.h"
+#include "packed/ocr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define KD_DEPTH 100
