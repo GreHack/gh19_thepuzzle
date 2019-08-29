@@ -1,6 +1,7 @@
 
 #include "img.h"
 
+#include <math.h>
 #include <stdlib.h>
 
 #define MIN3(a,b,c) (a<b?(a<c?a:c):(b<c?b:c))
@@ -35,7 +36,17 @@ void img_add_white_pix(img_t *img, unsigned int h, unsigned int w)
 	return;
 }
 
-void img_set_pix(img_t *img, unsigned int h, unsigned int w, unsigned char r, unsigned char g, unsigned char b)
+void img_set_pix(img_t *img, unsigned int h, unsigned int w, pix_t pix)
+{
+	img->pix[h][w] = pix;
+	if (pix == 0) {
+		/* Add a white pixel to the image */
+		img_add_white_pix(img, h, w);
+	}
+	return;
+}
+
+void img_set_pix_rgb(img_t *img, unsigned int h, unsigned int w, unsigned char r, unsigned char g, unsigned char b)
 {
 	pix_t pix = img_rgb_to_pix(&(img->pix[h][w]), r, g, b);
 	if (pix == 0) {
@@ -51,18 +62,38 @@ void img_free(img_t *img)
 		free(img->pix[h]);
 	}
 	free(img->pix);
+    // TODO free linked list of white pixels
 	free(img);
+}
+
+pix_t **img_allocate_pixels(unsigned int h, unsigned int w)
+{
+	pix_t **pix = (pix_t **) malloc(sizeof(pix_t *) * h);
+	for (unsigned int i = 0; i < h; i++) {
+		pix[i] = (pix_t *) malloc(sizeof(pix_t) * w);
+	}
+	return pix;
+}
+
+
+img_t *img_alloc(unsigned int h, unsigned int w)
+{
+	img_t *img = (img_t *) malloc(sizeof(img_t));
+	img->h = h;
+	img->w = w;
+	img->pix = (pix_t **) malloc(h * sizeof(pix_t *));
+	for (unsigned int dh = 0; dh < h; dh++) {
+		img->pix[dh] = (pix_t *) malloc(w * sizeof(pix_t));
+	}
+    img->wpix = NULL;
+	return img;
 }
 
 img_t *img_crop(img_t *img, unsigned int h, unsigned int w, unsigned int dh, unsigned int dw, unsigned int *nb_pix)
 {
-	img_t *cropped = (img_t *) malloc(sizeof(img_t));
+	img_t *cropped = img_alloc(dh, dw);
 	*nb_pix = 0;
-	cropped->h = dh;
-	cropped->w = dw;
-	cropped->pix = (pix_t **) malloc(dh * sizeof(pix_t *));
 	for (unsigned int y = h; y < h + dh; y++) {
-		cropped->pix[y - h] = (pix_t *) malloc(dw * sizeof(pix_t));
 		for (unsigned int x = w; x < w + dw; x++) {
 			unsigned char p = img->pix[y][x];
 			cropped->pix[y - h][x - w] = p;
@@ -72,7 +103,7 @@ img_t *img_crop(img_t *img, unsigned int h, unsigned int w, unsigned int dh, uns
 	return cropped;
 }
 
-#if DEBUG
+#ifdef DEBUG
 void img_to_file(img_t *img, char *filepath)
 {
 	// Write the buffer to ppm file
@@ -83,3 +114,56 @@ void img_to_file(img_t *img, char *filepath)
 	fclose(out);
 }
 #endif
+
+img_t *img_reduce(img_t *img, unsigned int ratio)
+{
+	img_t *new_img = img_alloc(img->h / ratio, img->w / ratio);
+	for (unsigned int dh = 0; dh < new_img->h; dh++) {
+		for (unsigned int dw = 0; dw < new_img->w; dw++) {
+			unsigned int val = 0;
+			for (unsigned int i = 0; i < ratio; i++) {
+				for (unsigned int j = 0; j < ratio; j++) {
+					val += img->pix[ratio * dh + i][ratio * dw + j];
+				}
+			}
+			img_set_pix(new_img, dh, dw, val / (ratio*ratio));
+		}
+	}
+	return new_img;
+}
+
+#ifdef DEBUG
+/* display image in CLI */
+void img_show_cli(img_t *img)
+{
+	for(unsigned int i = 0; i < img->h; i++) {
+		for (unsigned int j = 0; j < img->w; j++) {
+			if (img->pix[i][j]) {
+				printf("x");
+			} else {
+				printf(" ");
+			}
+		}
+		printf("\n");
+	}
+	return;
+}
+#endif
+
+/* compute distance between two images (euclidian) */
+/* CAUTION: returns square of dist */
+float img_dist(img_t *i1, img_t *i2)
+{
+	float dist = 0;
+	if (i1->h != i2->h || i1->w != i2->w) {
+		exit(1);
+	}
+	for (unsigned int i = 0; i < i1->h; i++) {
+		for (unsigned int j = 0; j < i1->w; j++) {
+			dist += pow(i1->pix[i][j] - i2->pix[i][j], 2.0);
+		}
+	}
+	return dist;
+}
+
+

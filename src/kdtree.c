@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "img.h"
 #include "ocr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -58,7 +59,7 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 		/* This is a final node of the tree */
 		// TODO parcourir les candidats
 		for (unsigned int i = 0; i < node->node.leaf.nb_entries; i++) {
-			d = ocr_dist(node->node.leaf.entries[i]->img, img);
+			d = img_dist(node->node.leaf.entries[i]->img, img);
 			if (d <= *best_dist) {
 				*best = node->node.leaf.entries[i];
 				*best_dist = d;
@@ -75,7 +76,7 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 		pix_t entry_pix = img->pix[h][w];
 		/* This is an internal node */
 		/* Compute distance between curr node and entry */
-		d = ocr_dist(node->node.inode.entry->img, img);
+		d = img_dist(node->node.inode.entry->img, img);
 		if (d < *best_dist) {
 			*best_dist = d;
 			*best = node->node.inode.entry;

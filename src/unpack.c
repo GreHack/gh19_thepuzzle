@@ -10,8 +10,6 @@
 
 #include "dbg.h"
 
-#define DEBUG 0
-
 typedef struct {
 	unsigned char *s;
 	int i;
@@ -71,7 +69,7 @@ char *rc4_get_key(char *mem)
 			fprintf(stderr, "key found: idx %u\n", kidx);
 			return rc4_keys[kidx];
 		} else {
-#if DEBUG
+#ifdef DEBUG_2PAC
 			fprintf(stderr, "[kidx=%u] %x %x %x %x\n", kidx, output[0] & 0xFF, output[1] & 0xFF, output[2] & 0xFF, output[3] & 0xFF); 
 #endif
 		}
@@ -90,7 +88,7 @@ int unpack(uint64_t offset)
 	/* Find correct key */
 	char *rc4_key = rc4_get_key(mem);
 	if (!rc4_key) {
-#if DEBUG
+#ifdef DEBUG_2PAC
 		fprintf(stderr, "[err] key not found -- aborting\n");
 #endif
 		exit(1);
@@ -98,11 +96,11 @@ int unpack(uint64_t offset)
 	rc4_state_t *rstate = rc4_init(rc4_key, KLEN);
 	while (1) {
 		unsigned char x = rc4_stream(rstate);
-#if DEBUG
+#ifdef DEBUG_2PAC
 		fprintf(stderr, "%06x: %02x ^ %02x -> ", offset + i, (mem[i] & 0xFF), (x & 0xFF));
 #endif
 		mem[i] ^= x;
-#if DEBUG
+#ifdef DEBUG_2PAC
 		fprintf(stderr, "%02x\n", (mem[i] & 0xFF));
 #endif
 		if (((mem[i] & 0xFF) == 0x90) && (i > 2) && ((mem[i - 1] & 0xFF) == 0x90) && ((mem[i - 2] & 0xFF) != 0x90)) {

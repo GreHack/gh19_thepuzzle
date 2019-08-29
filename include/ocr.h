@@ -4,9 +4,8 @@
 
 #include <stdbool.h>
 
+#include "global.h"
 #include "img.h"
-
-#define KD_TREE 1
 
 typedef struct {
 	img_t *img;
@@ -30,6 +29,6 @@ typedef struct {
 float ocr_dist(img_t *i1, img_t *i2);
 char ocr_recognize(ocr_t *ocr, img_t *img);
 ocr_t *ocr_train(char *label_path, char *data_path);
-void ocr_from_img(ocr_t *ocr, img_t *img);
+char *ocr_read_flag(ocr_t *ocr, img_t *img);
 
 #endif
