@@ -31,7 +31,6 @@
    than this value for a digit to be recognized */
 #define DIST_THRESHOLD 	3000000
 
-
 /* read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
 {
@@ -53,6 +52,8 @@ bool ocr_check_magic(FILE *fd, unsigned int magic)
 /* read one entry for the data file to train the OCR */
 entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned int w)
 {
+    /* mapping for OCR */
+    char map[10] = { '#', 'G', 'r', 'e', 'H', 'a', 'c', 'k', '1', '9'};
 	unsigned int nb_read = 0;
 	img_t *img = (img_t *) malloc(sizeof(img_t));
 	img->h = h;
@@ -71,7 +72,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 	}
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
 	entry->img = img;
-	entry->label = '0' + (char) fgetc(flabel);
+	entry->label = map[fgetc(flabel)];
 	return entry;
 }
 
@@ -178,11 +179,14 @@ char ocr_nearest_kd(ocr_t *ocr, img_t *img)
    this function is structure-agnostic */
 char ocr_recognize(ocr_t *ocr, img_t *img)
 {
+    TUPAC_BEG
 #if KD_TREE
-	return ocr_nearest_kd(ocr, img);
+    char nearest = ocr_nearest_kd(ocr, img);
 #else 
-	return ocr_nearest_array(ocr, img);
+	char nearest = ocr_nearest_array(ocr, img);
 #endif
+    TUPAC_END
+	return nearest;
 }
 
 /* read the training dataset and construct data structure for OCR in memory */
@@ -289,6 +293,7 @@ unsigned int ocr_w_last_pix(img_t *img)
    return the flag as a string if found, NULL otherwise */
 char *ocr_read_flag(ocr_t *ocr, img_t *img)
 {
+    TUPAC_BEG
 	/* reading position */
 	unsigned int h = 0, w = 0;
 	/* current read is in white rectangle? */
@@ -304,7 +309,7 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 #ifdef DEBUG_OCR
 			fprintf(stderr, "input: %s\n", input);
 #endif
-			return input;
+			break;
 		}
 		unsigned int nb_pix;
 		img_t *cropped = img_crop(img, h, w, READ_H, READ_W, &nb_pix);
@@ -342,6 +347,10 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 			input_len = 0;
 		}
 	}
-	free(input);
+    if (input_len < FLAG_LEN) {
+    	free(input);
+        input = NULL;
+    }
+    TUPAC_END
 	return NULL;
 }
