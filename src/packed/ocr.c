@@ -34,12 +34,10 @@
 /* read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
 {
-    TUPAC_BEG
 	unsigned int read_val;
 	if (fread(&read_val, sizeof(unsigned int), 1, fd) != 1) {
 		exit(1);
 	}
-    TUPAC_END
 	return htonl(read_val);
 }
 
@@ -52,8 +50,8 @@ bool ocr_check_magic(FILE *fd, unsigned int magic)
 /* read one entry for the data file to train the OCR */
 entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned int w)
 {
-    /* mapping for OCR */
-    char map[10] = { '#', 'G', 'r', 'e', 'H', 'a', 'c', 'k', '1', '9'};
+	/* mapping for OCR */
+	char map[10] = { '#', 'G', 'r', 'e', 'H', 'a', 'c', 'k', '1', '9'};
 	unsigned int nb_read = 0;
 	img_t *img = (img_t *) malloc(sizeof(img_t));
 	img->h = h;
@@ -79,7 +77,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 /* find next white rectangle in image where a flag could be detected by ocr
    - h and w are the current positions in the image where to start the research from;
    - it looks for a rectangle of READ_H pixels in height and at least WRECT_MIN_W pixels
-     of width, with white borders
+	 of width, with white borders
  */
 void ocr_next_white_rectangle(img_t *img, unsigned int *h, unsigned int *w)
 {
@@ -179,13 +177,11 @@ char ocr_nearest_kd(ocr_t *ocr, img_t *img)
    this function is structure-agnostic */
 char ocr_recognize(ocr_t *ocr, img_t *img)
 {
-    TUPAC_BEG
 #if KD_TREE
-    char nearest = ocr_nearest_kd(ocr, img);
+	char nearest = ocr_nearest_kd(ocr, img);
 #else 
 	char nearest = ocr_nearest_array(ocr, img);
 #endif
-    TUPAC_END
 	return nearest;
 }
 
@@ -294,7 +290,7 @@ unsigned int ocr_w_last_pix(img_t *img)
 char *ocr_read_flag(ocr_t *ocr, img_t *img)
 {
 #ifdef DEBUG_OCR
-    fprintf(stderr, "AYOOOOOOOOOOOO\n");
+	fprintf(stderr, "reading flag on the screen...\n");
 #endif
 	/* reading position */
 	unsigned int h = 0, w = 0;
@@ -349,9 +345,18 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 			input_len = 0;
 		}
 	}
-    if (input_len < FLAG_LEN) {
-    	free(input);
-        input = NULL;
-    }
+	if (input_len < FLAG_LEN) {
+		free(input);
+		input = NULL;
+	}
 	return input;
+}
+
+void ocr_dump_entry(entry_t *entry, FILE *file)
+{
+	/* write label */
+	fwrite(&(entry->label), sizeof(char), 1, file);  
+	/* write image */
+	img_dump(entry->img, file);
+	return;	
 }
