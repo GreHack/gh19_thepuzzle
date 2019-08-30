@@ -109,10 +109,12 @@ int unpack(uint64_t offset)
 			break;
 		}
 		i += 1;
-		if (i >= 0x100) {
+		// I don't know why this was added in a first place?
+		// But that's definitely wrong, some functions are bigger than 0x100
+		/*if (i >= 0x100) {
 			fprintf(stderr, "Something's wrong... aborting\n");
 			exit(1);
-		}
+		}*/
 	}
 	mem[0] = 0x55;
 	dbg_write_mem(offset, i+1, mem);
