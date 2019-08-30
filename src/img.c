@@ -62,7 +62,7 @@ void img_free(img_t *img)
 		free(img->pix[h]);
 	}
 	free(img->pix);
-    // TODO free linked list of white pixels
+	// TODO free linked list of white pixels
 	free(img);
 }
 
@@ -85,7 +85,7 @@ img_t *img_alloc(unsigned int h, unsigned int w)
 	for (unsigned int dh = 0; dh < h; dh++) {
 		img->pix[dh] = (pix_t *) malloc(w * sizeof(pix_t));
 	}
-    img->wpix = NULL;
+	img->wpix = NULL;
 	return img;
 }
 
@@ -166,4 +166,9 @@ float img_dist(img_t *i1, img_t *i2)
 	return dist;
 }
 
-
+void img_dump(img_t *img, FILE *file)
+{
+	for (unsigned int h = 0; h < img->h; h++)
+		for (unsigned int w = 0; w < img->w; w++)
+			fwrite(&(img->pix[h][w]), sizeof(pix_t), 1, file);
+}
