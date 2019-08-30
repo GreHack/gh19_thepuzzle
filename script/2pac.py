@@ -142,11 +142,12 @@ def main():
     # Find keys and unpack
     keys = import_keys("include/gen/rc4_keys.txt")
     bookmark = binary.find(TUPAC_BEG_MARKER)
+    packed = binary
     while bookmark != -1:
         while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
             bookmark -= 1
 
-        packed, unpacked = tupac(binary, bookmark, keys.pop(randint(0, len(keys) - 1)))
+        packed, unpacked = tupac(packed, bookmark, keys.pop(randint(0, len(keys) - 1)))
         bookmark = packed.find(TUPAC_BEG_MARKER, bookmark + 1)
 
     # Get address of unpacking routine
@@ -158,6 +159,7 @@ def main():
     # Everything is done, write the binary and add a continue to the script
     with open(DST_BINARY, "wb") as f:
         f.write(packed)
+    # TODO FIXME
     with open(IN_BINARY + '.unpacked', 'wb') as f:
         f.write(unpacked)
     chmod(IN_BINARY + '.unpacked', 0755)
