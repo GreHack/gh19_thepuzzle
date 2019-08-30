@@ -11,7 +11,7 @@
 #include "packed/ocr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define KD_DEPTH 100
+#define KD_DEPTH 10
 
 int kd_compare(entry_t **e1, entry_t **e2, unsigned int *depth)
 {
@@ -32,13 +32,13 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 	unsigned int h = entries[0]->img->h;
 	unsigned int w = entries[0]->img->w;
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
-	if (depth <= h * w) {
-		/* Max depth reached - storing the rest in leaf node */	    
+	if (depth == KD_DEPTH) {
+		/* Max depth reached - storing the rest in leaf node */		
 		node->type = KD_LEAF;
 		node->node.leaf.entries = entries;
 		node->node.leaf.nb_entries = nb_entries;
 	} else {
-		/* sort entries relatively to pixel corresponding to depth */     
+		/* sort entries relatively to pixel corresponding to depth */	 
 		node->type = KD_INODE;
 		qsort_r((void *) entries, nb_entries, sizeof(entry_t *), (int (*)(const void *, const void *, void *)) kd_compare, &depth);
 		int median = (signed int) nb_entries/2;
@@ -51,13 +51,46 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 	return node;
 }
 
-#if 1
+void kd_dump_inode(struct kinode_st *node, FILE *file)
+{
+	/* write node type */
+	fwrite("I", sizeof(char), 1, file);
+	/* write coordinates */
+	char c;
+	c = (char) node->coord[0];
+	fwrite(&c, sizeof(char), 1, file);
+	c = (char) node->coord[1];
+	fwrite(&c, sizeof(char), 1, file);
+	ocr_dump_entry(node->entry, file);
+}
+
+void kd_dump_leaf(struct kleaf_st *node, FILE *file)
+{
+	/* write node type */
+	fwrite("L", sizeof(char), 1, file);
+	/* write number of entries */ 
+	fwrite(&(node->nb_entries), sizeof(unsigned int), 1, file);
+	/* dump entries */
+	for (unsigned int i = 0; i < node->nb_entries; i++)
+		ocr_dump_entry(node->entries[i], file);
+}
+
+void kd_dump(knode_t *node, FILE *file)
+{
+	if (node->type == KD_LEAF) {
+		kd_dump_leaf(&(node->node.leaf), file);
+	} else {
+		kd_dump_inode(&(node->node.inode), file);
+		kd_dump(node->node.inode.left, file);
+		kd_dump(node->node.inode.right, file);
+	}
+}
+
 void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 {
 	float d;
 	if (node->type == KD_LEAF) {
 		/* This is a final node of the tree */
-		// TODO parcourir les candidats
 		for (unsigned int i = 0; i < node->node.leaf.nb_entries; i++) {
 			d = img_dist(node->node.leaf.entries[i]->img, img);
 			if (d <= *best_dist) {
@@ -91,4 +124,3 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 		}
 	}
 }
-#endif

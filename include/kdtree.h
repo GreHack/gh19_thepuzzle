@@ -31,6 +31,7 @@ struct knode_st {
 };
 
 knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int depth);
+void kd_dump(knode_t *tree, FILE *file);
 void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist);
 
 #endif
