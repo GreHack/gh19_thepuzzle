@@ -293,7 +293,9 @@ unsigned int ocr_w_last_pix(img_t *img)
    return the flag as a string if found, NULL otherwise */
 char *ocr_read_flag(ocr_t *ocr, img_t *img)
 {
-    TUPAC_BEG
+#ifdef DEBUG_OCR
+    fprintf(stderr, "AYOOOOOOOOOOOO\n");
+#endif
 	/* reading position */
 	unsigned int h = 0, w = 0;
 	/* current read is in white rectangle? */
@@ -351,6 +353,5 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
     	free(input);
         input = NULL;
     }
-    TUPAC_END
-	return NULL;
+	return input;
 }

@@ -7,7 +7,7 @@
 /* use KD tree for data structure of OCR? */
 #define KD_TREE 1
 
-#define FREE(p) (free(p); p = NULL)
+#define FREE(p) free(p); p = NULL
 
 /***** OBFUSCATION-RELATED VARIABLES *****/
 
