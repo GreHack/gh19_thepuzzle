@@ -157,7 +157,6 @@ void dbg_break_handler(void *addr, void *handler, const char *uhandler)
 		printf("K %p\n", addr);
 		dbg_die("Cannot peek");
 	}
-	//fprintf(stderr, "Instruction at %p: %lx\n", addr, trap);
 
 	dbg_bp *bp = malloc(sizeof(dbg_bp));
 	bp->addr = (uint64_t) addr;
@@ -186,6 +185,8 @@ void dbg_break_handler(void *addr, void *handler, const char *uhandler)
 	if (ptrace(PTRACE_POKETEXT, g_pid, addr, trap) == -1) {
 		dbg_die("Could not insert breakpoint");
 	}
+
+	fprintf(stderr, "Added BP at %p (0x%lx) (%06lx, %10s)\n", addr, (uint64_t) addr - g_baddr, (uint64_t) bp->handler, bp->uhandler);
 }
 
 /*
@@ -217,7 +218,6 @@ void dbg_continue(bool restore)
 {
 	struct user_regs_struct regs;
 	ptrace(PTRACE_GETREGS, g_pid, NULL, &regs);
-	fprintf(stderr, "Resuming at addr: 0x%llx (%lx)\n", regs.rip, regs.rip - g_baddr);
 
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
@@ -276,11 +276,12 @@ void dbg_continue(bool restore)
 			dbg_die("Cannot modify the program instruction");
 		}
 
+		fprintf(stderr, " Resuming at addr: 0x%llx (0x%llx)\n", regs.rip, regs.rip - g_baddr);
 		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot continue the process");
 		}
 	} else {
-		//fprintf(stderr, "WARNING: Continue reason not handled\n");
+		fprintf(stderr, "Resuming at addr: 0x%llx (%llx) (Warning: unknown reason)\n", regs.rip, regs.rip - g_baddr);
 		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot continue the process");
 		}
@@ -387,15 +388,18 @@ void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
 		bp = ptr->data;
 		if (bp->addr >= va && bp->addr < (va + size)) {
 			// Disable the breakpoint
-			//fprintf(stderr, ":::::::::::::DISABLING BP\n");
-			dbg_write_mem_va(bp->addr, 1, &bp->orig_data);
+			uint8_t *data = dbg_read_mem(bp->addr - g_baddr, 8);
+			dbg_write_mem_va(bp->addr, 1, (char*) &bp->orig_data);
+			uint8_t *datab= dbg_read_mem(bp->addr - g_baddr, 8);
+			fprintf(stderr, "BEFORE: %lx AFTER: %lx\n", *((uint64_t*) data), *((uint64_t*) datab));
+			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
 		}
 		bp = NULL;
 		ptr = ptr->next;
 	}
 }
 
-void dbg_breakpoint_enable(uint64_t offset, uint64_t size)
+void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original)
 {
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
@@ -404,8 +408,14 @@ void dbg_breakpoint_enable(uint64_t offset, uint64_t size)
 		bp = ptr->data;
 		if (bp->addr >= va && bp->addr < (va + size)) {
 			// Enable the breakpoint
-			//fprintf(stderr, ":::::::::::::ENABLING BP\n");
+			if (restore_original) {
+				uint8_t *data = dbg_read_mem(bp->addr - g_baddr, 1);
+				fprintf(stderr, "UH: %lx %lx\n", bp->orig_data, *data);
+				bp->orig_data = *data;
+				free(data);
+			}
 			dbg_write_mem_va(bp->addr, 1, "\xcc");
+			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
 		}
 		bp = NULL;
 		ptr = ptr->next;
@@ -514,7 +524,6 @@ static void dbg_function_call(const char *uhandler)
 
 void dbg_break_handle(uint64_t rip)
 {
-	fprintf(stderr, "BreakPoint hit: %p (%lx)\n", rip, rip - g_baddr);
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
 	while (ptr && ptr->next) {
@@ -529,6 +538,7 @@ void dbg_break_handle(uint64_t rip)
 		printf("WARNING: Expected a breakpoint but there was none heh");
 		return;
 	}
+	fprintf(stderr, "BreakPoint hit: 0x%016lx (0x%lx)\n", rip - 1, rip - g_baddr - 1);
 
 	if (bp->handler) {
 		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);

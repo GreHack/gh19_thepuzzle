@@ -118,7 +118,7 @@ int unpack(uint64_t offset)
 	}
 	mem[0] = 0x55;
 	dbg_write_mem(offset, i+1, mem);
-	dbg_breakpoint_enable(offset + 1, 0x1000);
+	dbg_breakpoint_enable(offset + 1, 0x1000, true);
 	free(rstate);
 	free(mem);
 	return 0;
