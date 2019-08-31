@@ -157,7 +157,7 @@ void dbg_break_handler(void *addr, void *handler, const char *uhandler)
 		printf("K %p\n", addr);
 		dbg_die("Cannot peek");
 	}
-	fprintf(stderr, "Instruction at %p: %lx\n", addr, trap);
+	//fprintf(stderr, "Instruction at %p: %lx\n", addr, trap);
 
 	dbg_bp *bp = malloc(sizeof(dbg_bp));
 	bp->addr = (uint64_t) addr;
@@ -217,7 +217,7 @@ void dbg_continue(bool restore)
 {
 	struct user_regs_struct regs;
 	ptrace(PTRACE_GETREGS, g_pid, NULL, &regs);
-	fprintf(stderr, "Resuming at addr: 0x%llx (%06x)\n", regs.rip, regs.rip - g_baddr);
+	fprintf(stderr, "Resuming at addr: 0x%llx (%lx)\n", regs.rip, regs.rip - g_baddr);
 
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
@@ -249,12 +249,12 @@ void dbg_continue(bool restore)
 		if (orig == -1) {
 			dbg_die("Cannot get the original instruction");
 		}
-		fprintf(stderr, "Current instruction: %lx\n", orig);
+		fprintf(stderr, " Resuming on instruction: %lx\n", orig);
 		if (restore) {
 			//fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
 			long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
 			//fprintf(stderr, "OK, actually restoring original instr\n");
-			fprintf(stderr, "New instruction: %lx\n", newdata);
+			fprintf(stderr, " Restoring instruction:   %lx\n", newdata);
 			if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
 				dbg_die("Cannot modify the program instruction");
 			}
@@ -280,7 +280,7 @@ void dbg_continue(bool restore)
 			dbg_die("Cannot continue the process");
 		}
 	} else {
-		fprintf(stderr, "WARNING: Continue reason not handled\n");
+		//fprintf(stderr, "WARNING: Continue reason not handled\n");
 		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot continue the process");
 		}
@@ -514,6 +514,7 @@ static void dbg_function_call(const char *uhandler)
 
 void dbg_break_handle(uint64_t rip)
 {
+	fprintf(stderr, "BreakPoint hit: %p (%lx)\n", rip, rip - g_baddr);
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
 	while (ptr && ptr->next) {
@@ -539,7 +540,7 @@ void dbg_break_handle(uint64_t rip)
 		dbg_function_call(bp->uhandler);
 	}
 
-	printf(">>>>>> Warning: Automatic continue after handling breakpoint!\n");
+	printf(">>>>>> Automatic continue after handling breakpoint!\n");
 	dbg_continue((bp->handler + g_baddr) != unpack);
 }
 

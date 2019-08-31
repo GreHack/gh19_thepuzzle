@@ -51,16 +51,15 @@ void father(int child_pid, char *script_path)
 		waitpid(child_pid, &status, 0);
 		regs = dbg_get_regs();
 		if (WIFEXITED(status)) {
-			printf("exited, status=%d\n", WEXITSTATUS(status));
+			printf("Exited, status=%d\n", WEXITSTATUS(status));
 			break;
 		} else if (WIFSIGNALED(status)) {
-			printf("killed by signal %d\n", WTERMSIG(status));
+			printf("Killed by signal %d\n", WTERMSIG(status));
 			break;
 		} else if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
-			printf("stopped by signal %d\n", sig);
+			printf("Stopped by signal %d (%s):\n", sig, strsignal(sig));
 			if (sig == SIGTRAP) {
-				fprintf(stderr, "BP hit: %p\n", regs->rip);
 				dbg_break_handle(regs->rip);
 			} else if (sig == SIGSEGV) {
 				fprintf(stderr, "Sorry, but it looks like there was a segfault here!\n");
@@ -70,9 +69,8 @@ void father(int child_pid, char *script_path)
 				exit(1);
 			}
 		} else if (WIFCONTINUED(status)) {
-			printf("continued\n");
+			printf("Continued\n");
 		}
-		printf("Wait ok (status %i | rip: %llx). Exiting.\n", status, regs->rip);
 	}
 	free(regs);
 }
@@ -80,19 +78,20 @@ void father(int child_pid, char *script_path)
 int main(int argc, char **argv)
 {
 	if (argc < 2) {
-		fprintf(stderr, "usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);
+		fprintf(stderr, "Usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);
 		exit(1);
 	}
 
 	int father_pid = getpid();
 
 	if (strncmp(".debugging_script", argv[1] + (strlen(argv[1]) - 17), 17) != 0) {
-		fprintf(stderr, "unknown extension for first argument -- aborting\n");
+		fprintf(stderr, "Unknown extension for first argument -- aborting\n");
 		exit(1);
 	}
 
 	int child_pid = fork();
 	if (!child_pid) {
+		// TODO Is it funny or just a pity?
 		/* Wait to leave some time to attach */
 		for (int i = 0; i < 2; i++) {
 #if DEBUG_MAIN

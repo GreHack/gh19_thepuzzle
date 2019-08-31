@@ -207,14 +207,14 @@ void dbg_parse_command(const char* input)
 	const char *ptr = input;
 	char *word = NULL;
 
-	fprintf(stderr, "Handling line: %s\n", input);
+	//fprintf(stderr, "Handling line: %s\n", input);
 	while (!is_space(*ptr) && *ptr != '\0') {
 		ptr++;
 	}
 	len = ptr - input;
 	word = calloc(1, len + 1);
 	if (!word) {
-		dbg_die("Cannot parse user input");
+		dbg_die("Cannot parse user input!");
 	}
 	memcpy(word, input, len);
 
@@ -233,7 +233,7 @@ void dbg_parse_command(const char* input)
 		dbg_parse_expr(&bp_addr);
 		dbg_parse_expr(&bp_handler);
 		dbg_break_handler((void *) bp_addr, (void *) bp_handler, NULL);
-		fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
+		//fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
 	}
 	else if (!strncmp(word, "CreateBreakpointAtAddressWithHandler", len) ||
 			!strncmp(word, "bh", len)) {
@@ -243,7 +243,7 @@ void dbg_parse_command(const char* input)
 		char handler_name[32];
 		strncpy(handler_name, p, sizeof(handler_name));
 		dbg_break_handler((void *) bp_addr, NULL, handler_name);
-		fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function '%s'\n", bp_addr, handler_name);
+		//fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function '%s'\n", bp_addr, handler_name);
 	}
 	else if (!strncmp(word, "ContinueProcess", len) ||
 			!strncmp(word, "c", len)) {

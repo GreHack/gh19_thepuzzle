@@ -26,7 +26,7 @@ def import_keys(fpath):
 	i += 1
     return map(lambda s: s[1:-1], data.split(",\n"))
 
-def tupac(binary, floc_beg, key):
+def tupac(binary, unpacked, floc_beg, key):
     print("[2PAC] Packing function at Ox%x with key %s" % (floc_beg, key.encode("hex")))
     # Look for final marker
     pac_beg = binary.find(TUPAC_BEG_MARKER, floc_beg + 1)
@@ -37,35 +37,41 @@ def tupac(binary, floc_beg, key):
     # binary = tupac_invert_jumps(binary, floc_beg, floc_end, DBG_SCRIPT)
 
     # Convert str to array because fuck it
-    array = [ord(c) for c in binary]
+    parray = [ord(c) for c in binary]
+    uarray = [ord(c) for c in unpacked]
 
     # Replace jumps by a jump on themselves, because that's funny
-    tupac_delete_jump(array, floc_beg, floc_end, DBG_SCRIPT)
+    tupac_delete_jump(parray, floc_beg, floc_end, DBG_SCRIPT)
+    tupac_delete_jump(uarray, floc_beg, floc_end, None)
 
     # Convert back array to str because fuck it
-    binary = ''.join(map(chr, array))
+    pbinary = ''.join(map(chr, parray))
+    ubinary = ''.join(map(chr, uarray))
 
     # Nop the markers
-    patched = str(binary)
+    patched = str(pbinary)
+    upatched = str(ubinary)
     for i in xrange(pac_beg, pac_beg + len(TUPAC_BEG_MARKER)):
         assert(patched[i] == TUPAC_BEG_MARKER[i - pac_beg])
         patched = patched[:i] + '\x90' + patched[i+1:]
+        upatched = upatched[:i] + '\x90' + upatched[i+1:]
         assert(patched[i] == '\x90')
     for i in xrange(pac_end, pac_end + len(TUPAC_END_MARKER)):
         assert(patched[i] == TUPAC_END_MARKER[i - pac_end])
         patched = patched[:i] + '\x90' + patched[i+1:]
+        upatched = upatched[:i] + '\x90' + upatched[i+1:]
         assert(patched[i] == '\x90')
 
     # Now pack the function
-    unpacked = str(patched)
-    patched = patched[:floc_beg] + RC4_crypt(key, patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
+    unpacked = str(upatched)
+    packed = patched[:floc_beg] + RC4_crypt(key, patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
 
     # print("after: " + patched[floc_beg:floc_end + 1].encode("hex"))
     # Pack the function
     ## for i in xrange(floc_beg, floc_end + 1):
     ##    patched = patched[:i] + chr(ord(patched[i]) ^ 0x42) + patched[i+1:]
     PACKED.append(floc_beg)
-    return patched, unpacked
+    return packed, unpacked
 
 
 def gen_function_name():
@@ -122,13 +128,14 @@ def tupac_delete_jump(data, floc_beg, floc_end, script):
             original = data[i + 1]
             jump_destination = 0xfe # randint(0, 0xff)
             data[i + 1] = jump_destination
-            with open(script, 'a') as f:
-                funcname = next(gen_function_name())
-                f.write('begin {}\nw {} {}\nend\n'.format(funcname, i + 1, original))
-                f.write('bh {} {}\n'.format(i, funcname))
-                # TODO Must add another handler *AFTER* the jump so theses changes
-                # are not sensitive to memory dump
-            print('[2PAC] Deleting jump at 0x{:x} ({:x} -> {:x})'.format(i, original, data[i + 1]))
+            if script is not None:
+                with open(script, 'a') as f:
+                    funcname = next(gen_function_name())
+                    f.write('begin {}\nw {} {}\nend\n'.format(funcname, i + 1, original))
+                    f.write('bh {} {}\n'.format(i, funcname))
+                    # TODO Must add another handler *AFTER* the jump so theses changes
+                    # are not sensitive to memory dump
+                print('[2PAC] Deleting jump at 0x{:x} ({:x} -> {:x})'.format(i, original, data[i + 1]))
 
 
 
@@ -143,11 +150,12 @@ def main():
     keys = import_keys("include/gen/rc4_keys.txt")
     bookmark = binary.find(TUPAC_BEG_MARKER)
     packed = binary
+    unpacked = binary
     while bookmark != -1:
         while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
             bookmark -= 1
 
-        packed, unpacked = tupac(packed, bookmark, keys.pop(randint(0, len(keys) - 1)))
+        packed, unpacked = tupac(packed, unpacked, bookmark, keys.pop(randint(0, len(keys) - 1)))
         bookmark = packed.find(TUPAC_BEG_MARKER, bookmark + 1)
 
     # Get address of unpacking routine
@@ -159,7 +167,6 @@ def main():
     # Everything is done, write the binary and add a continue to the script
     with open(DST_BINARY, "wb") as f:
         f.write(packed)
-    # TODO FIXME
     with open(IN_BINARY + '.unpacked', 'wb') as f:
         f.write(unpacked)
     chmod(IN_BINARY + '.unpacked', 0755)
