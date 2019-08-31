@@ -259,7 +259,9 @@ void dbg_parse_command(const char* input)
 			tmp >>= 8;
 			size++;
 		}
+#ifdef DEBUG_DEBUGGER
 		fprintf(stderr, "Writing memory: 0x%lx (%lx bytes)\n", what, size);
+#endif
 		dbg_mem_write(offset, size, (uint8_t*) &what);
 	}
 	else {

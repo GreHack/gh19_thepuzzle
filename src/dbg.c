@@ -186,7 +186,9 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 		dbg_die("Could not insert breakpoint");
 	}
 
+#ifdef DEBUG_DEBUGGER
 	fprintf(stderr, "Added BP at %p (0x%lx) (%06lx, %10s)\n", addr, (uint64_t) addr - g_baddr, (uint64_t) bp->handler, bp->uhandler);
+#endif
 }
 
 /*
@@ -220,7 +222,9 @@ void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
 		if (bp->addr >= va && bp->addr < (va + size)) {
 			// Disable the breakpoint
 			dbg_mem_write_va(bp->addr, 1, (uint8_t*) &bp->orig_data);
+#ifdef DEBUG_DEBUGGER
 			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
+#endif
 		}
 		bp = NULL;
 		ptr = ptr->next;
@@ -242,7 +246,9 @@ void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original
 				free(data);
 			}
 			dbg_mem_write_va(bp->addr, 1, (uint8_t*)"\xcc");
+#ifdef DEBUG_DEBUGGER
 			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
+#endif
 		}
 		bp = NULL;
 		ptr = ptr->next;
@@ -284,19 +290,27 @@ void dbg_break_handle(uint64_t rip)
 		printf("WARNING: Expected a breakpoint but there was none heh");
 		return;
 	}
+#ifdef DEBUG_DEBUGGER
 	fprintf(stderr, "BreakPoint hit: 0x%016lx (0x%lx)\n", rip - 1, rip - g_baddr - 1);
+#endif
 
 	if (bp->handler) {
+#ifdef DEBUG_DEBUGGER
 		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
+#endif
 		uint64_t (*handler_func)(uint64_t) = (uint64_t(*)(uint64_t))(g_baddr + bp->handler);
 		handler_func(rip - g_baddr - 1);
 	}
 	if (bp->uhandler) {
+#ifdef DEBUG_DEBUGGER
 		printf(">>>>>> CALLING USER HANDLER '%s'!\n", bp->uhandler);
+#endif
 		dbg_function_call(bp->uhandler);
 	}
 
+#ifdef DEBUG_DEBUGGER
 	printf(">>>>>> Automatic continue after handling breakpoint!\n");
+#endif
 	dbg_continue(((void*)(bp->handler + g_baddr)) != unpack);
 }
 
@@ -339,12 +353,14 @@ void dbg_continue(bool restore)
 		if (orig == -1) {
 			dbg_die("Cannot get the original instruction");
 		}
+#ifdef DEBUG_DEBUGGER
 		fprintf(stderr, " Resuming on instruction: %lx\n", orig);
+#endif
 		if (restore) {
-			//fprintf(stderr, "Breakpoint original instruction: %x\n", bp->orig_data);
 			long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
-			//fprintf(stderr, "OK, actually restoring original instr\n");
+#ifdef DEBUG_DEBUGGER
 			fprintf(stderr, " Restoring instruction:   %lx\n", newdata);
+#endif
 			if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
 				dbg_die("Cannot modify the program instruction");
 			}
@@ -366,12 +382,16 @@ void dbg_continue(bool restore)
 			dbg_die("Cannot modify the program instruction");
 		}
 
+#ifdef DEBUG_DEBUGGER
 		fprintf(stderr, " Resuming at addr: 0x%llx (0x%llx)\n", regs.rip, regs.rip - g_baddr);
+#endif
 		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot continue the process");
 		}
 	} else {
+#ifdef DEBUG_DEBUGGER
 		fprintf(stderr, "Resuming at addr: 0x%llx (%llx) (Warning: unknown reason)\n", regs.rip, regs.rip - g_baddr);
+#endif
 		if (ptrace(PTRACE_CONT, g_pid, NULL, NULL) == -1) {
 			dbg_die("Cannot continue the process");
 		}
@@ -540,10 +560,14 @@ void dbg_function_call(const char *uhandler)
 	while (fptr) {
 		// Execute the function
 		if (!strcmp(uhandler, fptr->name)) {
+#ifdef DEBUG_DEBUGGER
 			fprintf(stderr, "Executing Func: %s\n", fptr->name);
+#endif
 			dbg_function_line *line = fptr->firstline;
 			while (line) {
+#ifdef DEBUG_DEBUGGER
 				fprintf(stderr, "  -> %s", line->line);
+#endif
 				dbg_parse_command(line->line);
 				line = line->next;
 			}

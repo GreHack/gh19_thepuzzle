@@ -57,7 +57,9 @@ void father(int child_pid, char *script_path)
 			break;
 		} else if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
+#ifdef DEBUG_DEBUGGER
 			printf("Stopped by signal %d (%s):\n", sig, strsignal(sig));
+#endif
 			if (sig == SIGTRAP) {
 				dbg_break_handle(regs->rip);
 			} else if (sig == SIGSEGV) {
