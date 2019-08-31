@@ -81,7 +81,7 @@ char *rc4_get_key(char *mem)
 int unpack(uint64_t offset)
 {
 	dbg_breakpoint_disable(offset + 1, 0x1000);
-	uint8_t *mem = dbg_read_mem(offset, 0x1000);
+	uint8_t *mem = dbg_mem_read(offset, 0x1000);
 
 	int i = 0;
 	int state = 0;
@@ -117,7 +117,7 @@ int unpack(uint64_t offset)
 		}*/
 	}
 	mem[0] = 0x55;
-	dbg_write_mem(offset, i+1, mem);
+	dbg_mem_write(offset, i+1, mem);
 	dbg_breakpoint_enable(offset + 1, 0x1000, true);
 	free(rstate);
 	free(mem);

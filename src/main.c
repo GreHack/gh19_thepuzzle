@@ -49,7 +49,7 @@ void father(int child_pid, char *script_path)
 	// Main debugger loop
 	while (true) {
 		waitpid(child_pid, &status, 0);
-		regs = dbg_get_regs();
+		regs = dbg_regs_get();
 		if (WIFEXITED(status)) {
 			printf("Exited, status=%d\n", WEXITSTATUS(status));
 			break;

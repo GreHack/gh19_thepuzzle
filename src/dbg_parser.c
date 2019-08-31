@@ -232,7 +232,7 @@ void dbg_parse_command(const char* input)
 		uint64_t bp_handler = 0;
 		dbg_parse_expr(&bp_addr);
 		dbg_parse_expr(&bp_handler);
-		dbg_break_handler((void *) bp_addr, (void *) bp_handler, NULL);
+		dbg_breakpoint_add_handler((void *) bp_addr, (void *) bp_handler, NULL);
 		//fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
 	}
 	else if (!strncmp(word, "CreateBreakpointAtAddressWithHandler", len) ||
@@ -242,7 +242,7 @@ void dbg_parse_command(const char* input)
 		dbg_parse_expr(&bp_addr);
 		char handler_name[32];
 		strncpy(handler_name, p, sizeof(handler_name));
-		dbg_break_handler((void *) bp_addr, NULL, handler_name);
+		dbg_breakpoint_add_handler((void *) bp_addr, NULL, handler_name);
 		//fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function '%s'\n", bp_addr, handler_name);
 	}
 	else if (!strncmp(word, "ContinueProcess", len) ||
@@ -257,7 +257,7 @@ void dbg_parse_command(const char* input)
 		dbg_parse_expr(&offset);
 		dbg_parse_expr(&what);
 		// TODO 1 is wrong here and &what as well
-		dbg_write_mem(offset, 1, &what);
+		dbg_mem_write(offset, 1, &what);
 	}
 	else {
 		dbg_die("I don't understand what you say bro");
@@ -278,7 +278,7 @@ void dbg_parse_script(char *script) {
 	/* Read file content line by line */
 	while (getline(&line, &nb, script_fd) != -1) {
 		if (!strncmp(func_begin, line, sizeof(func_begin) - 1)) {
-			if (dbg_register_function(line, script_fd)) {
+			if (dbg_function_register(line, script_fd)) {
 				continue;
 			} else {
 				dbg_die("Err... Error while parsing script!\n");

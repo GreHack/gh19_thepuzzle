@@ -137,16 +137,16 @@ void dbg_attach(int pid)
  * We are in the context of PIE, so the given relative address will be rebased
  * on top of the program base address.
  */
-void dbg_break(void *addr)
+void dbg_breakpoint_add(void *addr)
 {
-	dbg_break_handler(addr, NULL, NULL);
+	dbg_breakpoint_add_handler(addr, NULL, NULL);
 }
 
 /*
  * Add a breakpoint with its handler function.
  * Note: Both are offsets because of PIE, not actual VA
  */
-void dbg_break_handler(void *addr, void *handler, const char *uhandler)
+void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 {
 	// Because of PIE, we add the base address to the target addr
 	addr = g_baddr + addr;
@@ -192,7 +192,7 @@ void dbg_break_handler(void *addr, void *handler, const char *uhandler)
 /*
  * Delete a breakpoint
  */
-void dbg_break_delete(void *addr)
+void dbg_breakpoint_delete(void *addr)
 {
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
@@ -208,6 +208,100 @@ void dbg_break_delete(void *addr)
 		bp = NULL;
 		ptr = ptr->next;
 	}
+}
+
+void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	uint64_t va = g_baddr + offset;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr >= va && bp->addr < (va + size)) {
+			// Disable the breakpoint
+			uint8_t *data = dbg_mem_read(bp->addr - g_baddr, 8);
+			dbg_mem_write_va(bp->addr, 1, (char*) &bp->orig_data);
+			uint8_t *datab= dbg_mem_read(bp->addr - g_baddr, 8);
+			fprintf(stderr, "BEFORE: %lx AFTER: %lx\n", *((uint64_t*) data), *((uint64_t*) datab));
+			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+}
+
+void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	uint64_t va = g_baddr + offset;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr >= va && bp->addr < (va + size)) {
+			// Enable the breakpoint
+			if (restore_original) {
+				uint8_t *data = dbg_mem_read(bp->addr - g_baddr, 1);
+				fprintf(stderr, "UH: %lx %lx\n", bp->orig_data, *data);
+				bp->orig_data = *data;
+				free(data);
+			}
+			dbg_mem_write_va(bp->addr, 1, "\xcc");
+			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+}
+
+/*
+ * Replace a breakpoint original data
+ */
+void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data)
+{
+
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr == offset + g_baddr) {
+			bp->orig_data = data;
+			break;
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+}
+
+void dbg_break_handle(uint64_t rip)
+{
+	dbg_bp_node *ptr = breakpoints;
+	dbg_bp *bp = NULL;
+	while (ptr && ptr->next) {
+		bp = ptr->data;
+		if (bp->addr == rip - 1) {
+			break;
+		}
+		bp = NULL;
+		ptr = ptr->next;
+	}
+	if (!bp) {
+		printf("WARNING: Expected a breakpoint but there was none heh");
+		return;
+	}
+	fprintf(stderr, "BreakPoint hit: 0x%016lx (0x%lx)\n", rip - 1, rip - g_baddr - 1);
+
+	if (bp->handler) {
+		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
+		int (*handler_func)(uint64_t) = g_baddr + bp->handler;
+		handler_func(rip - g_baddr - 1);
+	}
+	if (bp->uhandler) {
+		printf(">>>>>> CALLING USER HANDLER '%s'!\n", bp->uhandler);
+		dbg_function_call(bp->uhandler);
+	}
+
+	printf(">>>>>> Automatic continue after handling breakpoint!\n");
+	dbg_continue((bp->handler + g_baddr) != unpack);
 }
 
 /*
@@ -292,7 +386,7 @@ void dbg_continue(bool restore)
  * Read memory from the debuggee.
  * The returned buffer must be freed.
  */
-uint8_t *dbg_read_mem(int offset, int nb_bytes)
+uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes)
 {
 	// Make sure the requested amount of bytes is aligned
 	while (nb_bytes % sizeof(long)) {
@@ -315,17 +409,22 @@ uint8_t *dbg_read_mem(int offset, int nb_bytes)
 	return buffer;
 }
 
+uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes)
+{
+	return dbg_mem_read(addr - g_baddr, nb_bytes);
+}
+
 /*
  * Write debuggee's memory.
  */
-void dbg_write_mem(int offset, int nb_bytes, char *data)
+void dbg_mem_write(uint64_t offset, int nb_bytes, char *data)
 {
 	void *addr = (void *) g_baddr + offset;
 	unsigned long word;
 	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
 		int diff = nb_bytes - i;
 		if (diff < sizeof(long)) {
-			uint8_t *old_data = dbg_read_mem(offset + i, sizeof(long));
+			uint8_t *old_data = dbg_mem_read(offset + i, sizeof(long));
 			word = ((long *)old_data)[0];
 			word >>= diff * sizeof(long);
 			word <<= diff * sizeof(long);
@@ -346,14 +445,14 @@ void dbg_write_mem(int offset, int nb_bytes, char *data)
 	}
 }
 
-void dbg_write_mem_va(uint64_t va, int nb_bytes, char *data)
+void dbg_mem_write_va(uint64_t va, int nb_bytes, char *data)
 {
-	dbg_write_mem((int) (va - g_baddr), nb_bytes, data);
+	dbg_mem_write((int) (va - g_baddr), nb_bytes, data);
 }
 
-void dbg_show_mem(int offset, int len)
+void dbg_mem_show(int offset, int len)
 {
-	char *mem = dbg_read_mem(offset, len);
+	char *mem = dbg_mem_read(offset, len);
 	long addr = g_baddr + offset;
 	printf("[%016lx] ", addr);
 	for (int i = 0; i < len; i++) {
@@ -367,81 +466,19 @@ void dbg_show_mem(int offset, int len)
 	free(mem);
 }
 
-struct user_regs_struct *dbg_get_regs(void)
+struct user_regs_struct *dbg_regs_get(void)
 {
 	struct user_regs_struct *regs = (struct user_regs_struct *) malloc(sizeof(struct user_regs_struct));
 	ptrace(PTRACE_GETREGS, g_pid, NULL, regs);
 	return regs;
 }
 
-void dbg_set_regs(struct user_regs_struct *regs)
+void dbg_regs_set(struct user_regs_struct *regs)
 {
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
 }
 
-void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
-{
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	uint64_t va = g_baddr + offset;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr >= va && bp->addr < (va + size)) {
-			// Disable the breakpoint
-			uint8_t *data = dbg_read_mem(bp->addr - g_baddr, 8);
-			dbg_write_mem_va(bp->addr, 1, (char*) &bp->orig_data);
-			uint8_t *datab= dbg_read_mem(bp->addr - g_baddr, 8);
-			fprintf(stderr, "BEFORE: %lx AFTER: %lx\n", *((uint64_t*) data), *((uint64_t*) datab));
-			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
-		}
-		bp = NULL;
-		ptr = ptr->next;
-	}
-}
-
-void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original)
-{
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	uint64_t va = g_baddr + offset;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr >= va && bp->addr < (va + size)) {
-			// Enable the breakpoint
-			if (restore_original) {
-				uint8_t *data = dbg_read_mem(bp->addr - g_baddr, 1);
-				fprintf(stderr, "UH: %lx %lx\n", bp->orig_data, *data);
-				bp->orig_data = *data;
-				free(data);
-			}
-			dbg_write_mem_va(bp->addr, 1, "\xcc");
-			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
-		}
-		bp = NULL;
-		ptr = ptr->next;
-	}
-}
-
-/*
- * Replace a breakpoint original data
- */
-void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data)
-{
-
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr == offset + g_baddr) {
-			bp->orig_data = data;
-			break;
-		}
-		bp = NULL;
-		ptr = ptr->next;
-	}
-}
-
-bool dbg_register_function(const char* firstline, FILE *fileptr)
+bool dbg_function_register(const char* firstline, FILE *fileptr)
 {
 	dbg_function *func = calloc(1, sizeof(dbg_function));
 	const char func_end[] = "end";
@@ -501,7 +538,7 @@ bool dbg_register_function(const char* firstline, FILE *fileptr)
 	return res;
 }
 
-static void dbg_function_call(const char *uhandler)
+void dbg_function_call(const char *uhandler)
 {
 	dbg_function *fptr = functions;
 	while (fptr) {
@@ -520,37 +557,5 @@ static void dbg_function_call(const char *uhandler)
 		// Switch to next function
 		fptr = fptr->next;
 	}
-}
-
-void dbg_break_handle(uint64_t rip)
-{
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr == rip - 1) {
-			break;
-		}
-		bp = NULL;
-		ptr = ptr->next;
-	}
-	if (!bp) {
-		printf("WARNING: Expected a breakpoint but there was none heh");
-		return;
-	}
-	fprintf(stderr, "BreakPoint hit: 0x%016lx (0x%lx)\n", rip - 1, rip - g_baddr - 1);
-
-	if (bp->handler) {
-		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
-		int (*handler_func)(uint64_t) = g_baddr + bp->handler;
-		handler_func(rip - g_baddr - 1);
-	}
-	if (bp->uhandler) {
-		printf(">>>>>> CALLING USER HANDLER '%s'!\n", bp->uhandler);
-		dbg_function_call(bp->uhandler);
-	}
-
-	printf(">>>>>> Automatic continue after handling breakpoint!\n");
-	dbg_continue((bp->handler + g_baddr) != unpack);
 }
 

@@ -20,18 +20,29 @@
 
 /* dbg.c */
 void dbg_attach(int pid);
-void dbg_break(void *addr);
-void dbg_break_handler(void *addr, void *handler, const char *uhandler);
-void dbg_continue(bool restore);
-uint8_t *dbg_read_mem(int offset, int nb_bytes);
-void dbg_write_mem(int offset, int nb_bytes, char *data);
-void dbg_show_mem(int offset, int len);
-struct user_regs_struct *dbg_get_regs(void);
-void dbg_set_regs(struct user_regs_struct *regs);
-void dbg_break_handle(uint64_t rip);
-void dbg_hard_reset_breakpoint(uint64_t offset, uint64_t size);
+
+void dbg_breakpoint_add(void *addr);
+void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler);
+void dbg_breakpoint_delete(void *addr);
+void dbg_breakpoint_disable(uint64_t offset, uint64_t size);
+void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original);
 void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data);
-bool dbg_register_function(const char* firstline, FILE *fileptr);
+
+void dbg_break_handle(uint64_t rip);
+
+void dbg_continue(bool restore);
+
+uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes);
+uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes);
+void dbg_mem_write(uint64_t offset, int nb_bytes, char *data);
+void dbg_mem_write_va(uint64_t va, int nb_bytes, char *data);
+void dbg_mem_show(int offset, int len);
+
+struct user_regs_struct *dbg_regs_get(void);
+void dbg_regs_set(struct user_regs_struct *regs);
+
+bool dbg_function_register(const char* firstline, FILE *fileptr);
+void dbg_function_call(const char *uhandler);
 
 
 /* dbg_parser.c */
