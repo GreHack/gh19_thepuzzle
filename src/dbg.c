@@ -165,7 +165,7 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	if (uhandler) {
 		// Copy handler name and remove newline
 		bp->uhandler = strdup(uhandler); // TODO Free me
-		char *tmp = bp->uhandler;
+		char *tmp = (char *) bp->uhandler;
 		while (*tmp) {
 			if (*tmp == '\n') {
 				*tmp = '\0';
@@ -219,10 +219,7 @@ void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
 		bp = ptr->data;
 		if (bp->addr >= va && bp->addr < (va + size)) {
 			// Disable the breakpoint
-			uint8_t *data = dbg_mem_read(bp->addr - g_baddr, 8);
-			dbg_mem_write_va(bp->addr, 1, (char*) &bp->orig_data);
-			uint8_t *datab= dbg_mem_read(bp->addr - g_baddr, 8);
-			fprintf(stderr, "BEFORE: %lx AFTER: %lx\n", *((uint64_t*) data), *((uint64_t*) datab));
+			dbg_mem_write_va(bp->addr, 1, (uint8_t*) &bp->orig_data);
 			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
 		}
 		bp = NULL;
@@ -241,11 +238,10 @@ void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original
 			// Enable the breakpoint
 			if (restore_original) {
 				uint8_t *data = dbg_mem_read(bp->addr - g_baddr, 1);
-				fprintf(stderr, "UH: %lx %lx\n", bp->orig_data, *data);
 				bp->orig_data = *data;
 				free(data);
 			}
-			dbg_mem_write_va(bp->addr, 1, "\xcc");
+			dbg_mem_write_va(bp->addr, 1, (uint8_t*)"\xcc");
 			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
 		}
 		bp = NULL;
@@ -292,7 +288,7 @@ void dbg_break_handle(uint64_t rip)
 
 	if (bp->handler) {
 		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
-		int (*handler_func)(uint64_t) = g_baddr + bp->handler;
+		uint64_t (*handler_func)(uint64_t) = (uint64_t(*)(uint64_t))(g_baddr + bp->handler);
 		handler_func(rip - g_baddr - 1);
 	}
 	if (bp->uhandler) {
@@ -301,7 +297,7 @@ void dbg_break_handle(uint64_t rip)
 	}
 
 	printf(">>>>>> Automatic continue after handling breakpoint!\n");
-	dbg_continue((bp->handler + g_baddr) != unpack);
+	dbg_continue(((void*)(bp->handler + g_baddr)) != unpack);
 }
 
 /*
@@ -417,12 +413,12 @@ uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes)
 /*
  * Write debuggee's memory.
  */
-void dbg_mem_write(uint64_t offset, int nb_bytes, char *data)
+void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data)
 {
 	void *addr = (void *) g_baddr + offset;
 	unsigned long word;
 	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
-		int diff = nb_bytes - i;
+		size_t diff = nb_bytes - i;
 		if (diff < sizeof(long)) {
 			uint8_t *old_data = dbg_mem_read(offset + i, sizeof(long));
 			word = ((long *)old_data)[0];
@@ -445,14 +441,14 @@ void dbg_mem_write(uint64_t offset, int nb_bytes, char *data)
 	}
 }
 
-void dbg_mem_write_va(uint64_t va, int nb_bytes, char *data)
+void dbg_mem_write_va(uint64_t va, int nb_bytes, const uint8_t *data)
 {
 	dbg_mem_write((int) (va - g_baddr), nb_bytes, data);
 }
 
 void dbg_mem_show(int offset, int len)
 {
-	char *mem = dbg_mem_read(offset, len);
+	uint8_t *mem = dbg_mem_read(offset, len);
 	long addr = g_baddr + offset;
 	printf("[%016lx] ", addr);
 	for (int i = 0; i < len; i++) {

@@ -189,11 +189,7 @@ static void dbg_parse_expr2X(uint64_t v, uint64_t *r)
 /*
  * General expression, can be anything
  */
-#ifndef TEST
-static void dbg_parse_expr(uint64_t *r)
-#else
 void dbg_parse_expr(uint64_t *r)
-#endif
 {
 	uint64_t n;
 	dbg_parse_expr1(&n);
@@ -256,8 +252,15 @@ void dbg_parse_command(const char* input)
 		uint64_t what = 0;
 		dbg_parse_expr(&offset);
 		dbg_parse_expr(&what);
-		// TODO 1 is wrong here and &what as well
-		dbg_mem_write(offset, 1, &what);
+		// Get what size and write it
+		uint64_t tmp = what;
+		size_t size = 0;
+		while (tmp) {
+			tmp >>= 8;
+			size++;
+		}
+		fprintf(stderr, "Writing memory: 0x%lx (%lx bytes)\n", what, size);
+		dbg_mem_write(offset, size, (uint8_t*) &what);
 	}
 	else {
 		dbg_die("I don't understand what you say bro");

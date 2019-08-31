@@ -30,7 +30,6 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 		return NULL;
 	}
 	unsigned int h = entries[0]->img->h;
-	unsigned int w = entries[0]->img->w;
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
 	if (depth == KD_DEPTH) {
 		/* Max depth reached - storing the rest in leaf node */		

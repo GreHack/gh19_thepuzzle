@@ -5,7 +5,7 @@
 #include "gen/rc4_consts.txt"
 #include <stdint.h>
 
-static char rc4_keys[NKEY][KLEN] = {
+static const char rc4_keys[NKEY][KLEN] = {
 	/* import keys from file */
 	#include "gen/rc4_keys.txt"
 };

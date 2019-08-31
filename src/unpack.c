@@ -16,7 +16,7 @@ typedef struct {
 	int j;
 } rc4_state_t;
 
-rc4_state_t *rc4_init(char *key, int key_len)
+rc4_state_t *rc4_init(const char *key, int key_len)
 {
 	rc4_state_t *state = (rc4_state_t *) malloc(sizeof(rc4_state_t));
 	state->s = (unsigned char *) malloc(256);
@@ -49,7 +49,7 @@ unsigned char rc4_stream(rc4_state_t *state)
 	return state->s[(state->s[state->i] + state->s[state->j]) % 256];
 }
 
-char *rc4_crypt(char *key, int key_len, char *input, int input_len) 
+char *rc4_crypt(const char *key, int key_len, char *input, int input_len) 
 {
 	char *output = (char *) malloc(input_len);
 	rc4_state_t *state = rc4_init(key, key_len);
@@ -60,11 +60,11 @@ char *rc4_crypt(char *key, int key_len, char *input, int input_len)
 	return output;
 }
 
-char *rc4_get_key(char *mem)
+const char *rc4_get_key(uint8_t *mem)
 {
 	unsigned int kidx = 0;
 	for (kidx = 0; kidx < NKEY; kidx++) {
-		char *output = rc4_crypt(rc4_keys[kidx], KLEN, mem, 4);
+		char *output = rc4_crypt(rc4_keys[kidx], KLEN, (char*) mem, 4);
 		if (strncmp(output + 1, "\x48\x89\xe5", 3) == 0) {
 			fprintf(stderr, "key found: idx %u\n", kidx);
 			return rc4_keys[kidx];
@@ -86,7 +86,7 @@ int unpack(uint64_t offset)
 	int i = 0;
 	int state = 0;
 	/* Find correct key */
-	char *rc4_key = rc4_get_key(mem);
+	const char *rc4_key = rc4_get_key(mem);
 	if (!rc4_key) {
 #ifdef DEBUG_2PAC
 		fprintf(stderr, "[err] key not found -- aborting\n");
