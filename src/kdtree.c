@@ -60,6 +60,7 @@ void kd_dump_inode(struct kinode_st *node, FILE *file)
 	fwrite(&c, sizeof(char), 1, file);
 	c = (char) node->coord[1];
 	fwrite(&c, sizeof(char), 1, file);
+	/* dump entry */
 	ocr_dump_entry(node->entry, file);
 }
 
@@ -83,6 +84,62 @@ void kd_dump(knode_t *node, FILE *file)
 		kd_dump(node->node.inode.left, file);
 		kd_dump(node->node.inode.right, file);
 	}
+}
+
+knode_t *kd_load_inode(FILE *file)
+{
+	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
+	node->type = KD_INODE;
+	/* read coordinates */
+	fread(&(node->node.inode.coord[0]), sizeof(char), 1, file);
+	fread(&(node->node.inode.coord[1]), sizeof(char), 1, file);
+	/* read entry */
+	node->node.inode.entry = ocr_load_entry(file);
+#ifdef DEBUG_KD
+	if (node->node.inode.entry->img->h <= node->node.inode.coord[0])
+		exit(1);
+	if (node->node.inode.entry->img->w <= node->node.inode.coord[1])
+		exit(1);
+#endif
+	node->node.inode.left = NULL;
+	node->node.inode.right = NULL;
+	return node;
+}
+
+knode_t *kd_load_leaf(FILE *file)
+{
+	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
+	node->type = KD_LEAF;
+	/* read number of entries */ 
+	fread(&(node->node.leaf.nb_entries), sizeof(unsigned int), 1, file);
+	/* allocate entries */
+	node->node.leaf.entries = (entry_t *) malloc(sizeof(entry_t *) * node->node.leaf.nb_entries);
+	/* read entries */
+	for (unsigned int i = 0; i < node->node.leaf.nb_entries; i++)
+		node->node.leaf.entries[i] = ocr_load_entry(file);
+	return node;
+}
+
+knode_t *kd_load(FILE *file)
+{
+	char type;
+	knode_t *kn;
+	/* Read type of node */
+	fread(&type, sizeof(char), 1, file);
+	switch (type) {
+	case 'I':
+		kn = kd_load_inode(file);
+		kn->node.inode.left = kd_load(file);
+		kn->node.inode.right = kd_load(file);
+		break;
+	case 'L':
+		kn = NULL;
+		kn = kd_load_leaf(file);
+		break;
+	default:
+		exit(1);
+	}
+	return kn;
 }
 
 void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)

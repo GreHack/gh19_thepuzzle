@@ -31,5 +31,6 @@ char ocr_recognize(ocr_t *ocr, img_t *img);
 ocr_t *ocr_train(char *label_path, char *data_path);
 char *ocr_read_flag(ocr_t *ocr, img_t *img);
 void ocr_dump_entry(entry_t *entry, FILE *file);
+entry_t *ocr_load_entry(FILE *file);
 
 #endif

@@ -44,5 +44,6 @@ void img_show_cli(img_t *img);
 #endif
 float img_dist(img_t *i1, img_t *i2);
 void img_dump(img_t *img, FILE *file);
+img_t *img_load(FILE *file);
 
 #endif

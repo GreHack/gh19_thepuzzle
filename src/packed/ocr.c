@@ -50,7 +50,6 @@ bool ocr_check_magic(FILE *fd, unsigned int magic)
 /* read one entry for the data file to train the OCR */
 entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned int w)
 {
-	TUPAC_BEG
 	/* mapping for OCR */
 	char map[10] = { '#', 'G', 'r', 'e', 'H', 'a', 'c', 'k', '1', '9'};
 	unsigned int nb_read = 0;
@@ -72,7 +71,6 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
 	entry->img = img;
 	entry->label = map[fgetc(flabel)];
-	TUPAC_END
 	return entry;
 }
 
@@ -361,4 +359,14 @@ void ocr_dump_entry(entry_t *entry, FILE *file)
 	/* write image */
 	img_dump(entry->img, file);
 	return;	
+}
+
+entry_t *ocr_load_entry(FILE *file)
+{
+	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
+	/* read label */
+	fread(&(entry->label), sizeof(char), 1, file);  
+	/* read image */
+	entry->img = img_load(file);
+	return entry;	
 }

@@ -25,13 +25,24 @@ void obfuscation_main();
 	img_to_file(screenshot, "/tmp/out.ppm");
 #endif
 	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
-    fprintf(stderr, "AYO\n");
-    char *input = ocr_read_flag(ocr, screenshot);
+	FILE *fd = fopen("/tmp/kd.bin", "w");
+	kd_dump(ocr, fd);
+#ifdef DEBUG_LOAD
+	fprintf(stderr, "Dump KD complete\n");
+#endif
+	fclose(fd);
+	fd = fopen("/tmp/kd.bin", "r");
+	ocr = kd_load(fd);
+#ifdef DEBUG_LOAD
+	fprintf(stderr, "Load KD complete\n");
+#endif
+	fclose(fd);
+	char *input = ocr_read_flag(ocr, screenshot);
 #if DEBUG_MAIN
 	fprintf(stderr, "user input: %s\n", input);
 #endif
-    FREE(input);
-
+	FREE(input);
+	return;
 #endif
 }
 
@@ -86,8 +97,10 @@ void father(int child_pid, char *script_path)
 
 int main(int argc, char **argv)
 {
+	child();
+	return 0;
 	if (argc < 2) {
-		fprintf(stderr, "Usage: ./%s /path/to/script.debugging_script FLAG -- aborting\n", argv[0]);
+		fprintf(stderr, "Usage: ./%s /path/to/script.debugging_script -- aborting\n", argv[0]);
 		exit(1);
 	}
 
