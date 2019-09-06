@@ -311,7 +311,11 @@ void dbg_break_handle(uint64_t rip)
 #ifdef DEBUG_DEBUGGER
 	printf(">>>>>> Automatic continue after handling breakpoint!\n");
 #endif
+#ifndef TEST
 	dbg_continue(((void*)(bp->handler + g_baddr)) != unpack);
+#else
+	dbg_continue(false);
+#endif
 }
 
 /*
