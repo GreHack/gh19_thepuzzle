@@ -126,9 +126,11 @@ def bin_replace(data, before, after):
 
 
 def tupac_delete_jump(data, floc_beg, floc_end, script):
-    return
+    return # XXX FIXME
     size = floc_end - floc_beg
+    repatch = []
     for i in range(floc_beg, floc_beg + size):
+        # TODO This is completely stupid, it can be part of an address...
         if data[i] == 0xeb:
             original = data[i + 1]
             jump_destination = 0xfe # randint(0, 0xff)
@@ -140,7 +142,13 @@ def tupac_delete_jump(data, floc_beg, floc_end, script):
                     f.write('bh {} {}\n'.format(i, funcname))
                     # TODO Must add another handler *AFTER* the jump so theses changes
                     # are not sensitive to memory dump
+                    repatch.append('w {} {}'.format(i + 1, jump_destination))
                 print('[2PAC] Deleting jump at 0x{:x} ({:x} -> {:x})'.format(i, original, data[i + 1]))
+    if len(repatch) > 0 and script:
+        with open(script, 'a') as f:
+            funcname = next(gen_function_name())
+            f.write('begin {}\n'.format(funcname) + '\n'.join(repatch) + '\nend\n')
+            f.write('bh {} {}\n'.format(floc_end, funcname))
 
 
 

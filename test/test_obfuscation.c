@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "global.h"
+#include <string.h>
 
 int another_function(int total)
 {
@@ -16,9 +17,12 @@ int another_function(int total)
 		break;
 	case 2:
 		val += 4;
+		free(NULL);
 		break;
 	case 3:
 		val += 1;
+		(void) strcmp("hello", "waht");
+		unsigned char c = 0xeb;
 		break;
 	case 4:
 		val += 3;
@@ -34,6 +38,9 @@ int do_test()
 	int total = 0;
 	for (int i = 0; i < 1337; i++) {
 		total += another_function(total);
+		char *fu = malloc(100);
+		fu[0] = 1;
+		free(fu);
 	}
 	TUPAC_END
 	return total;

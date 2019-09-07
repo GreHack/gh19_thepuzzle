@@ -47,6 +47,8 @@ clean:
 	rm -rf $(OBJDIR)/packed/*.o
 	rm -rf script/*.pyc script/__pycache__
 	rm -rf include/gen/*
+	rm -rf $(EXEC)
+	rm -rf $(EXEC).*
 
 mproper: clean
 	rm -rf $(EXEC)
