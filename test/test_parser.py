@@ -2,10 +2,13 @@
 
 
 import subprocess
+import sys
 
 GREEN = '\033[92m'
 RED = '\033[91m'
 ENDC = '\033[0m'
+
+fail = 0
 
 
 def logok(t):
@@ -13,6 +16,8 @@ def logok(t):
 
 
 def logfail(t):
+    global fail
+    fail = 1
     print(RED + '[XX] ' + ENDC + t.decode('utf-8'))
 
 
@@ -43,6 +48,7 @@ def test_parser():
         else:
             logfail(t)
     proc.kill()
+    sys.exit(fail)
 
 
 if __name__ == '__main__':

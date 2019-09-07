@@ -1,1 +1,3 @@
 test_parser_bin
+test_obfuscation_bin*
+*.debugging_script

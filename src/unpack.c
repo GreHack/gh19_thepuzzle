@@ -70,7 +70,7 @@ const char *rc4_get_key(uint8_t *mem)
 			return rc4_keys[kidx];
 		} else {
 #ifdef DEBUG_2PAC
-			fprintf(stderr, "[kidx=%u] %x %x %x %x\n", kidx, output[0] & 0xFF, output[1] & 0xFF, output[2] & 0xFF, output[3] & 0xFF); 
+			fprintf(stderr, "[kidx=%03u] K: %02x%02x%02x -> %02x %02x %02x\n", kidx, rc4_keys[kidx][0] & 0xFF, rc4_keys[kidx][1] & 0xFF, rc4_keys[kidx][2] & 0xFF, output[0] & 0xFF, output[1] & 0xFF, output[2] & 0xFF); 
 #endif
 		}
 		free(output);
@@ -97,7 +97,7 @@ int unpack(uint64_t offset)
 	while (1) {
 		unsigned char x = rc4_stream(rstate);
 #ifdef DEBUG_2PAC
-		fprintf(stderr, "%06x: %02x ^ %02x -> ", offset + i, (mem[i] & 0xFF), (x & 0xFF));
+		fprintf(stderr, "%06lx: %02x ^ %02x -> ", offset + i, (mem[i] & 0xFF), (x & 0xFF));
 #endif
 		mem[i] ^= x;
 #ifdef DEBUG_2PAC

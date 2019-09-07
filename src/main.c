@@ -13,6 +13,13 @@
  */
 void child()
 {
+#ifdef TEST_OBFUSCATION
+
+void obfuscation_main();
+	obfuscation_main();
+
+#else
+
 	img_t *screenshot = screen_capture();
 #ifdef DEBUG_MAIN
 	img_to_file(screenshot, "/tmp/out.ppm");
@@ -24,7 +31,8 @@ void child()
 	fprintf(stderr, "user input: %s\n", input);
 #endif
     FREE(input);
-    return;
+
+#endif
 }
 
 /*

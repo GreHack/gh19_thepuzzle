@@ -5,6 +5,7 @@ import struct
 import subprocess
 import string
 from os import chmod
+import sys
 
 TUPAC_BEG_MARKER = "GiveUs2PacBack"
 TUPAC_END_MARKER = "LetTheLegendResurrect"
@@ -14,6 +15,7 @@ PACKED = list()
 FUNCS = dict()
 UFUNCS = list()
 
+IN_BINARY = "main"
 DBG_SCRIPT = "dbg/2pac.debugging_script"
 
 def import_keys(fpath):
@@ -23,7 +25,7 @@ def import_keys(fpath):
     while i < len(data) - 1:
         if data[i] == '\\' and data[i+1] == 'x':
             data = data[:i] + chr(int(data[i+2:i+4], 16)) + data[i+4:]
-	i += 1
+        i += 1
     return map(lambda s: s[1:-1], data.split(",\n"))
 
 def tupac(binary, unpacked, floc_beg, key):
@@ -64,7 +66,9 @@ def tupac(binary, unpacked, floc_beg, key):
 
     # Now pack the function
     unpacked = str(upatched)
-    packed = patched[:floc_beg] + RC4_crypt(key, patched[floc_beg:floc_end + 1]) + patched[floc_end + 1:]
+    crypt = RC4_crypt(key, patched[floc_beg:floc_end + 1])
+    #print('Packing -> ', patched[floc_beg:floc_beg+4], crypt[:4])
+    packed = patched[:floc_beg] + crypt + patched[floc_end + 1:]
 
     # print("after: " + patched[floc_beg:floc_end + 1].encode("hex"))
     # Pack the function
@@ -94,7 +98,7 @@ def get_symbol_info(binary, symbol):
 def read_binary(file):
     # Init the constants
     global FUNCS
-    FUNCS['reverse_jump'] = get_symbol_info(file, 'reverse_jump')
+    #FUNCS['reverse_jump'] = get_symbol_info(file, 'reverse_jump')
 
     # Read the binary
     with open(file, "rb") as f:
@@ -109,19 +113,20 @@ def bin_replace(data, before, after):
     return data[:where] + after + data[off:]
 
 
-def tupac_invert_jumps(data, floc_beg, floc_end, script):
-    size = floc_end - floc_beg
-    for i in range(size):
-        val = struct.unpack('B', data[floc_beg + i])[0] # Thank you Python2... Lol.
-        if val == 0x7c:
-            print('[2PAC] Replacing jumps at 0x{:x}'.format(floc_beg + i))
-            data = bin_replace(data, '\x7c', '\xff') # We can put anything
-            with open(script, 'a') as f:
-                f.write("b {} {}\n".format(floc_beg + i, FUNCS['reverse_jump'][0]))
-    return data
+#def tupac_invert_jumps(data, floc_beg, floc_end, script):
+#    size = floc_end - floc_beg
+#    for i in range(size):
+#        val = struct.unpack('B', data[floc_beg + i])[0] # Thank you Python2... Lol.
+#        if val == 0x7c:
+#            print('[2PAC] Replacing jumps at 0x{:x}'.format(floc_beg + i))
+#            data = bin_replace(data, '\x7c', '\xff') # We can put anything
+#            with open(script, 'a') as f:
+#                f.write("b {} {}\n".format(floc_beg + i, FUNCS['reverse_jump'][0]))
+#    return data
 
 
 def tupac_delete_jump(data, floc_beg, floc_end, script):
+    return
     size = floc_end - floc_beg
     for i in range(floc_beg, floc_beg + size):
         if data[i] == 0xeb:
@@ -140,22 +145,33 @@ def tupac_delete_jump(data, floc_beg, floc_end, script):
 
 
 def main():
-    IN_BINARY = "main"
-    DST_BINARY = "2pac_main"
+    global IN_BINARY, DBG_SCRIPT
+    KEYFILE = 'include/gen/rc4_keys.txt'
+    # Get arguments
+    if len(sys.argv) > 1:
+        IN_BINARY = sys.argv[1]
+    if len(sys.argv) > 2:
+        DBG_SCRIPT = sys.argv[2]
+    if len(sys.argv) > 3:
+        KEYFILE = sys.argv[3]
+    DST_BINARY = '2pac_' + IN_BINARY
+    print("[*] Starting 2pac on '{}', outputs in '{}' and '{}'".format(IN_BINARY, DST_BINARY, DBG_SCRIPT))
+
+    # Read binary and overwrite dest script
     binary = read_binary(IN_BINARY)
     with open(DBG_SCRIPT, "w") as f:
         f.write('')
 
     # Find keys and unpack
-    keys = import_keys("include/gen/rc4_keys.txt")
+    keys = import_keys(KEYFILE)
     bookmark = binary.find(TUPAC_BEG_MARKER)
     packed = binary
     unpacked = binary
     while bookmark != -1:
         while binary[bookmark:bookmark+4] != "\x55\x48\x89\xe5":
             bookmark -= 1
-
-        packed, unpacked = tupac(packed, unpacked, bookmark, keys.pop(randint(0, len(keys) - 1)))
+        key = keys.pop(randint(0, len(keys) - 1))
+        packed, unpacked = tupac(packed, unpacked, bookmark, key)
         bookmark = packed.find(TUPAC_BEG_MARKER, bookmark + 1)
 
     # Get address of unpacking routine
@@ -169,7 +185,7 @@ def main():
         f.write(packed)
     with open(IN_BINARY + '.unpacked', 'wb') as f:
         f.write(unpacked)
-    chmod(IN_BINARY + '.unpacked', 0755)
+    chmod(IN_BINARY + '.unpacked', 0o755)
     with open(DBG_SCRIPT, 'a') as f:
         f.write("c\n")
 
