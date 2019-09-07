@@ -44,6 +44,7 @@ $(DEPS): # HDIR)/gen/rc4_consts.txt:
 
 clean:
 	rm -rf $(OBJDIR)/*.o
+	rm -rf $(OBJDIR)/packed/*.o
 	rm -rf script/*.pyc script/__pycache__
 	rm -rf include/gen/*
 

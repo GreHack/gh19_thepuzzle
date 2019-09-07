@@ -41,9 +41,7 @@ int do_test()
 
 void obfuscation_main()
 {
-	TUPAC_BEG
 	int result = do_test();
-	fprintf(stderr, "%d\n", result);
-	TUPAC_END
+	printf("%d\n", result);
 	exit(0);
 }

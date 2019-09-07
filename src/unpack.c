@@ -66,7 +66,9 @@ const char *rc4_get_key(uint8_t *mem)
 	for (kidx = 0; kidx < NKEY; kidx++) {
 		char *output = rc4_crypt(rc4_keys[kidx], KLEN, (char*) mem, 4);
 		if (strncmp(output + 1, "\x48\x89\xe5", 3) == 0) {
+#ifdef DEBUG_2PAC
 			fprintf(stderr, "key found: idx %u\n", kidx);
+#endif
 			return rc4_keys[kidx];
 		} else {
 #ifdef DEBUG_2PAC

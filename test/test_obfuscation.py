@@ -30,14 +30,18 @@ def test_obfuscation():
     proc.stdin.close()
 
     # Now check the output
-    res = proc.stdout.readline().decode()
-    if res and int(res) == 10:
-        logok(t)
-    else:
+    try:
+        res = proc.stdout.readline().decode()
+        if res and int(res) == 3341:
+            logok(t)
+        else:
+            logfail(t)
+    except:
         logfail(t)
     proc.kill()
 
 
 if __name__ == '__main__':
-    test_obfuscation()
+    for _ in range(3):
+        test_obfuscation()
     sys.exit(fail)
