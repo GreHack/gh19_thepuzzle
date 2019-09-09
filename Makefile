@@ -19,7 +19,7 @@ OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
 SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 
 debug: CFLAGS += -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD
-debug: kd_load
+debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
 release: kd_load
