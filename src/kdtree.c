@@ -3,6 +3,7 @@
 
 #include "kdtree.h"
 
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@
 #include "packed/ocr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define KD_DEPTH 10
+#define KD_DEPTH 14
 
 int kd_compare(entry_t **e1, entry_t **e2, unsigned int *depth)
 {
@@ -46,8 +47,8 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 		node->node.inode.entry = entries[median];
 		node->node.inode.coord[0] = depth / h;
 		node->node.inode.coord[1] = depth % h;
-		node->node.inode.left = kd_create(entries, MAX(median - 1, 0), depth + 1);
-		node->node.inode.right = kd_create(entries + median, MAX(((signed int) nb_entries) - median - 1, 0), depth + 1);
+		node->node.inode.left = kd_create(entries, MAX(median, 0), depth + 1);
+		node->node.inode.right = kd_create(entries + median + 1, MAX(((signed int) nb_entries) - median - 1, 0), depth + 1);
 	}
 	return node;
 }
@@ -213,6 +214,24 @@ FILE *kd_get_fd(char *path)
 #endif
 	fseek(fd, -sizeof(unsigned int) - size, SEEK_END);
 	return fd;
+}
+
+#endif
+
+#if TEST_KD
+
+void kd_test(knode_t *k, img_t *img)
+{
+	entry_t *best;
+	float dist = FLT_MAX;
+	kd_search(k, img, &best, &dist);
+	img_show_cli(img);
+	img_show_cli(best->img);
+	fprintf(stderr, "dist: %f\n", dist);
+	if (dist > 0) {
+		fprintf(stderr, "Something wrong...\n");
+		exit(1);
+	}
 }
 
 #endif

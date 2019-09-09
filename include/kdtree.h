@@ -51,4 +51,8 @@ FILE *kd_get_fd(char *path);
 knode_t *kd_load(FILE *file);
 #endif
 
+#if TEST_KD
+void kd_test(knode_t *k, img_t *img);
+#endif
+
 #endif

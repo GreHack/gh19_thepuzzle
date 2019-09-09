@@ -231,6 +231,10 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 	ocr->nb_entries = nb_label;
 	ocr->entries = entries;
 #endif
+#if TEST_KD
+	for (unsigned int i = nb_label - 100; i < nb_label; i++)
+		kd_test(ocr, entries[i]->img);
+#endif
 	return ocr;
 }
 
