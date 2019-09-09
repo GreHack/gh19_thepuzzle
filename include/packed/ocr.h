@@ -28,9 +28,19 @@ typedef struct {
 
 float ocr_dist(img_t *i1, img_t *i2);
 char ocr_recognize(ocr_t *ocr, img_t *img);
+
+#ifndef KD_LOAD
 ocr_t *ocr_train(char *label_path, char *data_path);
+#endif
+
 char *ocr_read_flag(ocr_t *ocr, img_t *img);
+
+#ifdef KD_DUMP
 void ocr_dump_entry(entry_t *entry, FILE *file);
+#endif
+
+#ifdef KD_LOAD
 entry_t *ocr_load_entry(FILE *file);
+#endif
 
 #endif

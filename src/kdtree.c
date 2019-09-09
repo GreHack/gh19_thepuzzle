@@ -24,6 +24,8 @@ int kd_compare(entry_t **e1, entry_t **e2, unsigned int *depth)
 	return (p1 < p2)?-1:((p1 == p2)?0:1);
 }
 
+#ifndef KD_LOAD
+
 knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int depth)
 {
 	if (!entries || nb_entries == 0) {
@@ -49,6 +51,10 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 	}
 	return node;
 }
+
+#endif
+
+#ifdef KD_DUMP
 
 void kd_dump_inode(struct kinode_st *node, FILE *file)
 {
@@ -85,6 +91,10 @@ void kd_dump(knode_t *node, FILE *file)
 		kd_dump(node->node.inode.right, file);
 	}
 }
+
+#endif
+
+#ifdef KD_LOAD
 
 knode_t *kd_load_inode(FILE *file)
 {
@@ -143,6 +153,8 @@ knode_t *kd_load(FILE *file)
 	return kn;
 }
 
+#endif
+
 void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 {
 	float d;
@@ -182,6 +194,8 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 	}
 }
 
+#ifdef KD_LOAD
+
 FILE *kd_get_fd(char *path)
 {
 	FILE *fd = fopen(path, "r");
@@ -200,3 +214,5 @@ FILE *kd_get_fd(char *path)
 	fseek(fd, -sizeof(unsigned int) - size, SEEK_END);
 	return fd;
 }
+
+#endif

@@ -185,6 +185,8 @@ char ocr_recognize(ocr_t *ocr, img_t *img)
 	return nearest;
 }
 
+#ifndef KD_LOAD
+
 /* read the training dataset and construct data structure for OCR in memory */
 ocr_t *ocr_train(char *label_path, char *data_path)
 {
@@ -231,6 +233,8 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 #endif
 	return ocr;
 }
+
+#endif
 
 /* return true iif the image given as an input has white pixels 
    in the top and bottom borders */
@@ -352,6 +356,8 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 	return input;
 }
 
+#ifdef KD_DUMP
+
 void ocr_dump_entry(entry_t *entry, FILE *file)
 {
 	/* write label */
@@ -360,6 +366,10 @@ void ocr_dump_entry(entry_t *entry, FILE *file)
 	img_dump(entry->img, file);
 	return;	
 }
+
+#endif
+
+#ifdef KD_LOAD
 
 entry_t *ocr_load_entry(FILE *file)
 {
@@ -370,3 +380,5 @@ entry_t *ocr_load_entry(FILE *file)
 	entry->img = img_load(file);
 	return entry;	
 }
+
+#endif

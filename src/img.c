@@ -1,4 +1,3 @@
-
 #include "img.h"
 
 #include <math.h>
@@ -166,6 +165,8 @@ float img_dist(img_t *i1, img_t *i2)
 	return dist;
 }
 
+#ifdef KD_DUMP
+
 void img_dump(img_t *img, FILE *file)
 {
 	fwrite(&(img->h), sizeof(char), 1, file);
@@ -174,6 +175,10 @@ void img_dump(img_t *img, FILE *file)
 		for (unsigned int w = 0; w < img->w; w++)
 			fwrite(&(img->pix[h][w]), sizeof(pix_t), 1, file);
 }
+
+#endif
+
+#ifdef KD_LOAD
 
 img_t *img_load(FILE *file)
 {
@@ -191,3 +196,5 @@ img_t *img_load(FILE *file)
 			fread(&(img->pix[h][w]), sizeof(pix_t), 1, file);
 	return img;
 }
+
+#endif
