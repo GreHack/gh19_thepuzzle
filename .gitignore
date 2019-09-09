@@ -1,6 +1,7 @@
 build/
 .gdb_history
 *.swp
+*.swo
 *.o
 main
 main.old
