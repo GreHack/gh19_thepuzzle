@@ -357,7 +357,7 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 		img_free(cropped);
 		if (!ocr_fast_filter(reduced, nb_pix, &in_white_rectangle)) {
 			img_free(reduced);
-			w += READ_W / 4;
+			w += READ_W / 8;
 			if (w + READ_W >= img->w) {
 				w = 0;
 				h += READ_H / 4;
@@ -380,7 +380,7 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 			input_len++;
 		}
 		img_free(reduced);
-		w += READ_W / 4;
+		w += READ_W / 8;
 		if (w + READ_W >= img->w) {
 			w = 0;
 			h += READ_H / 4;
@@ -413,7 +413,7 @@ entry_t *ocr_load_entry(FILE *file)
 {
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
 	/* read label */
-	fread(&(entry->label), sizeof(char), 1, file);  
+	FREAD_KD(&(entry->label), sizeof(char), 1, file);  
 	/* read image */
 	entry->img = img_load(file);
 	return entry;	

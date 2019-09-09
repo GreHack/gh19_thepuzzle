@@ -231,14 +231,16 @@ img_t *img_load(FILE *file)
 	img->h = 0;
 	img->w = 0;
 	/* read h and w */
-	fread(&(img->h), sizeof(char), 1, file);
-	fread(&(img->w), sizeof(char), 1, file);
+	FREAD_KD(&(img->h), sizeof(char), 1, file);
+	FREAD_KD(&(img->w), sizeof(char), 1, file);
 	/* allocate pixels */
 	img->pix = img_allocate_pixels(img->h, img->w);
 	/* read pixels */
-	for (unsigned int h = 0; h < img->h; h++)
-		for (unsigned int w = 0; w < img->w; w++)
-			fread(&(img->pix[h][w]), sizeof(pix_t), 1, file);
+	for (unsigned int h = 0; h < img->h; h++) {
+		for (unsigned int w = 0; w < img->w; w++) {
+			FREAD_KD(&(img->pix[h][w]), sizeof(pix_t), 1, file);
+		}
+	}
 #ifdef DEBUG_IMG
 	img_show_cli(img);
 #endif

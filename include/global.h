@@ -3,6 +3,7 @@
 #define __GLOBAL_H__
 
 #include "flag.h"
+#include "rc4.h"
 
 /* use KD tree for data structure of OCR? */
 #define KD_TREE 1
@@ -24,6 +25,12 @@
 
 #ifndef KD_LOAD
 #define KD_DUMP
+#else
+rc4_state_t *kd_rc4_state;
+#define KD_RC4_KEY "This program cannot be run in DOS mode"
+#define FREAD_KD(p, sz, nb, fd) fread(p, sz, nb, fd); for (unsigned int idx = 0; idx < sz*nb; idx++) { ((unsigned char *) p)[idx] ^= rc4_stream(kd_rc4_state); }// rc4_enc((unsigned char *) p, sz*nb);
 #endif
+
+
 
 #endif

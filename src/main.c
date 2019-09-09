@@ -26,7 +26,10 @@ void obfuscation_main();
 	img_to_file(screenshot, "/tmp/out.ppm");
 #endif
 #if KD_LOAD
+	/* init RC4 stream */
+	kd_rc4_state = rc4_init(KD_RC4_KEY, strlen(KD_RC4_KEY));
 	FILE *fd = kd_get_fd(self_path);
+	/* load kd tree */
 	ocr_t *ocr = kd_load(fd);
 #ifdef DEBUG_LOAD
 	fprintf(stderr, "Load KD complete\n");

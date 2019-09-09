@@ -11,8 +11,8 @@ LDFLAGS=-lX11 -lm
 
 all: $(EXEC)
 
-_DEPS=core.h dbg.h unpack.h screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt kdtree.h img.h packed/check.h sha256.h
-_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c screen.c kdtree.c img.c packed/check.c sha256.c
+_DEPS=core.h dbg.h unpack.h screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt kdtree.h img.h packed/check.h sha256.h rc4.h
+_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c screen.c kdtree.c img.c packed/check.c sha256.c rc4.c
 _OBJ=$(_SRC:.c=.o)
 DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
@@ -29,7 +29,8 @@ flag:
 
 kd_load: CFLAGS += -D KD_LOAD
 kd_load: $(EXEC)
-	cat data/kd.bin >> $(EXEC)
+	python2 script/rc4.py "This program cannot be run in DOS mode" data/kd.bin data/kd.enc
+	cat data/kd.enc >> $(EXEC)
 	python -c "import struct; print(struct.pack('<I', $$(wc -c < data/kd.bin)))" | head -c -1 >> $(EXEC)
 		
 # Generic rules

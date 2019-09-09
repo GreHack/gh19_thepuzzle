@@ -1,5 +1,7 @@
 #-*- coding: utf-8 -*-
 
+import sys
+
 def RC4_key_schedule(key):
     s = list(range(0, 256))
     j = 0
@@ -20,3 +22,9 @@ def RC4_crypt(key, clear):
         x = s[(s[i] + s[j]) % 256]
         data += chr(x ^ b)
     return data
+
+if __name__ == "__main__":
+	if len(sys.argv) < 4:
+		print("usage: {} <key> <in> <out>".format(sys.argv[0]))
+		exit(1)
+	open(sys.argv[3], 'w').write(RC4_crypt(sys.argv[1], open(sys.argv[2]).read()))

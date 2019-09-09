@@ -49,6 +49,8 @@ void kd_dump(knode_t *tree, FILE *file);
 FILE *kd_get_fd(char *path);
 /* load kd structure from a file */
 knode_t *kd_load(FILE *file);
+/* decrypt kd data */
+void kd_decrypt(FILE *fd);
 #endif
 
 #if TEST_KD

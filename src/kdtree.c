@@ -104,8 +104,8 @@ knode_t *kd_load_inode(FILE *file)
 	node->node.inode.coord[0] = 0;
 	node->node.inode.coord[1] = 0;
 	/* read coordinates */
-	fread(&(node->node.inode.coord[0]), sizeof(char), 1, file);
-	fread(&(node->node.inode.coord[1]), sizeof(char), 1, file);
+	FREAD_KD(&(node->node.inode.coord[0]), sizeof(char), 1, file);
+	FREAD_KD(&(node->node.inode.coord[1]), sizeof(char), 1, file);
 	/* read entry */
 	node->node.inode.entry = ocr_load_entry(file);
 #ifdef DEBUG_KD
@@ -124,7 +124,7 @@ knode_t *kd_load_leaf(FILE *file)
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
 	node->type = KD_LEAF;
 	/* read number of entries */ 
-	fread(&(node->node.leaf.nb_entries), sizeof(unsigned int), 1, file);
+	FREAD_KD(&(node->node.leaf.nb_entries), sizeof(unsigned int), 1, file);
 	/* allocate entries */
 	node->node.leaf.entries = (entry_t **) malloc(sizeof(entry_t *) * node->node.leaf.nb_entries);
 	/* read entries */
@@ -138,7 +138,7 @@ knode_t *kd_load(FILE *file)
 	char type;
 	knode_t *kn;
 	/* Read type of node */
-	fread(&type, sizeof(char), 1, file);
+	FREAD_KD(&type, sizeof(char), 1, file);
 	switch (type) {
 	case 'I':
 		kn = kd_load_inode(file);
