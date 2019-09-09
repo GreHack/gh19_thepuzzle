@@ -6,9 +6,11 @@ build/
 main
 main.old
 main.unpacked
+main.2pac
 .ccls
 .ccls-cache/
 include/gen/*.txt
 script/*.pyc
 data/
 .gdbinit
+__pycache__/

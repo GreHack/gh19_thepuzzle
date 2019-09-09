@@ -2,7 +2,6 @@
 #ifndef __GLOBAL_H__
 #define __GLOBAL_H__
 
-#include "flag.h"
 #include "rc4.h"
 
 /* use KD tree for data structure of OCR? */

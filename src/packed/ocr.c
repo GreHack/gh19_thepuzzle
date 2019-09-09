@@ -10,6 +10,7 @@
 
 #include "global.h"
 #include "img.h"
+#include "flag.h"
 
 /* Global constants relative to OCR */
 #if KD_TREE
