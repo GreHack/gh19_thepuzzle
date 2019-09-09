@@ -90,6 +90,8 @@ knode_t *kd_load_inode(FILE *file)
 {
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
 	node->type = KD_INODE;
+	node->node.inode.coord[0] = 0;
+	node->node.inode.coord[1] = 0;
 	/* read coordinates */
 	fread(&(node->node.inode.coord[0]), sizeof(char), 1, file);
 	fread(&(node->node.inode.coord[1]), sizeof(char), 1, file);
@@ -113,7 +115,7 @@ knode_t *kd_load_leaf(FILE *file)
 	/* read number of entries */ 
 	fread(&(node->node.leaf.nb_entries), sizeof(unsigned int), 1, file);
 	/* allocate entries */
-	node->node.leaf.entries = (entry_t *) malloc(sizeof(entry_t *) * node->node.leaf.nb_entries);
+	node->node.leaf.entries = (entry_t **) malloc(sizeof(entry_t *) * node->node.leaf.nb_entries);
 	/* read entries */
 	for (unsigned int i = 0; i < node->node.leaf.nb_entries; i++)
 		node->node.leaf.entries[i] = ocr_load_entry(file);

@@ -168,8 +168,8 @@ float img_dist(img_t *i1, img_t *i2)
 
 void img_dump(img_t *img, FILE *file)
 {
-	fwrite(&(img->h), sizeof(pix_t), 1, file);
-	fwrite(&(img->w), sizeof(pix_t), 1, file);
+	fwrite(&(img->h), sizeof(char), 1, file);
+	fwrite(&(img->w), sizeof(char), 1, file);
 	for (unsigned int h = 0; h < img->h; h++)
 		for (unsigned int w = 0; w < img->w; w++)
 			fwrite(&(img->pix[h][w]), sizeof(pix_t), 1, file);
@@ -183,9 +183,6 @@ img_t *img_load(FILE *file)
 	/* read h and w */
 	fread(&(img->h), sizeof(char), 1, file); 
 	fread(&(img->w), sizeof(char), 1, file); 
-#ifdef DEBUG_LOAD
-	fprintf(stderr, "h: %u ; w: %u\n", img->h, img->w);
-#endif
 	/* allocate pixels */
 	img->pix = img_allocate_pixels(img->h, img->w);
 	/* read pixels */
