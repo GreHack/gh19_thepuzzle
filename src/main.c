@@ -7,11 +7,12 @@
 #include "screen.h"
 #include "unpack.h"
 #include "packed/ocr.h"
+#include "packed/check.h"
 
 /*
  * This is the debuggee, our child process.
  */
-void child()
+void child(char *self_path)
 {
 #ifdef TEST_OBFUSCATION
 
@@ -24,23 +25,33 @@ void obfuscation_main();
 #ifdef DEBUG_MAIN
 	img_to_file(screenshot, "/tmp/out.ppm");
 #endif
+#if KD_LOAD
+	FILE *fd = kd_get_fd(self_path);
+	ocr_t *ocr = kd_load(fd);
+#ifdef DEBUG_LOAD
+	fprintf(stderr, "Load KD complete\n");
+#endif
+#else
 	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
-	FILE *fd = fopen("/tmp/kd.bin", "w");
+	FILE *fd = fopen("data/kd.bin", "w");
 	kd_dump(ocr, fd);
 #ifdef DEBUG_LOAD
 	fprintf(stderr, "Dump KD complete\n");
 #endif
-	fclose(fd);
-	fd = fopen("/tmp/kd.bin", "r");
-	ocr = kd_load(fd);
-#ifdef DEBUG_LOAD
-	fprintf(stderr, "Load KD complete\n");
 #endif
 	fclose(fd);
 	char *input = ocr_read_flag(ocr, screenshot);
 #if DEBUG_MAIN
 	fprintf(stderr, "user input: %s\n", input);
 #endif
+	if (input) {
+		if (check_flag(input))
+			fprintf(stdout, "Congrats, you're a hacker!\n");
+		else
+			fprintf(stdout, "Nope. You think you're a hacker but you're not, go back to (Gh)id(r)a!\n");
+	} else {
+		fprintf(stdout, "Come on, give me some input to process, man.\n");
+	}
 	FREE(input);
 	return;
 #endif
