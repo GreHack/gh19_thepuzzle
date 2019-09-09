@@ -11,18 +11,21 @@ LDFLAGS=-lX11 -lm
 
 all: $(EXEC)
 
-_DEPS=core.h dbg.h unpack.h screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt kdtree.h img.h packed/check.h
-_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c screen.c kdtree.c img.c packed/check.c
+_DEPS=core.h dbg.h unpack.h screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt kdtree.h img.h packed/check.h sha256.h
+_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c screen.c kdtree.c img.c packed/check.c sha256.c
 _OBJ=$(_SRC:.c=.o)
 DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
 SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 
-debug: CFLAGS += -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD
+debug: CFLAGS += -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK # -D DEBUG_IMG
 debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
-release: kd_load
+release: flag kd_load
+
+flag:
+	python2 ./script/gen_flag.py >> data/flag.txt
 
 kd_load: CFLAGS += -D KD_LOAD
 kd_load: $(EXEC)
