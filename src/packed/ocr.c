@@ -292,6 +292,37 @@ unsigned int ocr_w_last_pix(img_t *img)
 	}
 	return 0;
 }
+#ifdef DEBUG_OCR
+
+char ocr_revert_map(char c)
+{
+	switch (c) {
+	case '#':
+		return '0';
+	case 'G':
+		return '1';
+	case 'r':
+		return '2';
+	case 'e':
+		return '3';
+	case 'H':
+		return '4';
+	case 'a':
+		return '5';
+	case 'c':
+		return '6';
+	case 'k':
+		return '7';
+	case '1':
+		return '8';
+	case '9':
+		return '9';
+	default:
+		return '?';
+	}
+}
+
+#endif
 
 /* read the flag with ocr on the image given as a parameter 
    return the flag as a string if found, NULL otherwise */
