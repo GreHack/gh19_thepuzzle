@@ -69,7 +69,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 		}
 	}
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
-	entry->img = img;
+	entry->img = img_center(img);
 	entry->label = map[fgetc(flabel)];
 	return entry;
 }
@@ -262,20 +262,20 @@ bool ocr_in_white_rectangle(img_t *img)
 bool ocr_fast_filter(img_t *img, unsigned int nb_pix, bool *in_white_rectangle)
 {
 	*in_white_rectangle = ocr_in_white_rectangle(img);
-	if (nb_pix < 50)
+	if (nb_pix < 50 || nb_pix < 400)
 		return false;
 	if (!in_white_rectangle)
 		return false; 
 	for(unsigned int w = 0; w < img->w; w++) {
-		if (img->pix[0][w] + img->pix[1][w] + img->pix[2][w] + img->pix[3][w])
+		if (img->pix[0][w])
 			return false;
-		if (img->pix[img->h - 1][w] + img->pix[img->h - 2][w] + img->pix[img->h - 3][w] + img->pix[img->h - 4][w])
+		if (img->pix[img->h - 1][w])
 			return false;
 	}
 	for(unsigned int h = 0; h < img->h; h++) {
-		if (img->pix[h][0] + img->pix[h][1] + img->pix[h][2] + img->pix[h][3])
+		if (img->pix[h][0] + img->pix[h][1])
 			return false;
-		if (img->pix[h][img->w - 1] + img->pix[h][img->w - 2] + img->pix[h][img->w - 3] + img->pix[h][img->w - 4])
+		if (img->pix[h][img->w - 1] + img->pix[h][img->w - 2])
 			return false;
 	}
 	return true;
@@ -319,14 +319,17 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 		}
 		unsigned int nb_pix;
 		img_t *cropped = img_crop(img, h, w, READ_H, READ_W, &nb_pix);
+		unsigned int last_w = ocr_w_last_pix(cropped);
 		img_t *reduced = img_reduce(cropped, READ_H / 28);
+		if (nb_pix)
+			reduced = img_center(reduced);
 		img_free(cropped);
 		if (!ocr_fast_filter(reduced, nb_pix, &in_white_rectangle)) {
 			img_free(reduced);
-			w++;
-			if (w + READ_W == img->w) {
+			w += READ_W / 4;
+			if (w + READ_W >= img->w) {
 				w = 0;
-				h++;
+				h += READ_H / 4;
 				input_len = 0;
 			}
 			if (!in_white_rectangle) {
@@ -338,18 +341,18 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 		char c = ocr_recognize(ocr, reduced);
 		if (c != '!') {
 #ifdef DEBUG_OCR
-			fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", c, nb_pix);
+			fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", ocr_revert_map(c), nb_pix);
 			img_show_cli(reduced);
 #endif
-			w += ocr_w_last_pix(reduced) * (READ_H / 28);
+			w += last_w;
 			input[input_len] = c;
 			input_len++;
 		}
 		img_free(reduced);
-		w++;
-		if (w + READ_W == img->w) {
+		w += READ_W / 4;
+		if (w + READ_W >= img->w) {
 			w = 0;
-			h++;
+			h += READ_H / 4;
 			input_len = 0;
 		}
 	}

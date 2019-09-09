@@ -69,7 +69,7 @@ pix_t **img_allocate_pixels(unsigned int h, unsigned int w)
 {
 	pix_t **pix = (pix_t **) malloc(sizeof(pix_t *) * h);
 	for (unsigned int i = 0; i < h; i++) {
-		pix[i] = (pix_t *) malloc(sizeof(pix_t) * w);
+		pix[i] = (pix_t *) calloc(sizeof(pix_t), w);
 	}
 	return pix;
 }
@@ -122,12 +122,51 @@ img_t *img_reduce(img_t *img, unsigned int ratio)
 			unsigned int val = 0;
 			for (unsigned int i = 0; i < ratio; i++) {
 				for (unsigned int j = 0; j < ratio; j++) {
-					val += img->pix[ratio * dh + i][ratio * dw + j];
+					val += img->pix[ratio * dh + i][ratio * dw + j]?1:0;
 				}
 			}
-			img_set_pix(new_img, dh, dw, val / (ratio*ratio));
+			img_set_pix(new_img, dh, dw, val>=2?255:0);
 		}
 	}
+	return new_img;
+}
+
+img_t *img_center(img_t *img)
+{
+	img_t *new_img = (img_t *) malloc(sizeof(img_t));
+	new_img->h = img->h;
+	new_img->w = img->w;
+	new_img->pix = img_allocate_pixels(img->h, img->w);
+	/* Compute center */
+	unsigned int min_h = img->h - 1, max_h = 0, min_w = img->w - 1, max_w = 0;
+	for (unsigned int dh = 0; dh < img->h; dh++) {
+		for (unsigned int dw = 0; dw < img->w; dw++) {
+			if (img->pix[dh][dw]) {
+				if (min_h > dh)
+					min_h = dh;
+				if (min_w > dw)
+					min_w = dw;
+				if (max_h < dh)
+					max_h = dh;
+				if (max_w < dw)
+					max_w = dw;
+			}
+		}
+	}
+	if (max_w == 0 || max_h == 0)
+		goto img_center_end;
+	unsigned int hstart, wstart;
+	hstart = (img->h - (max_h - min_h))/2;
+	wstart = (img->w - (max_w - min_w))/2;
+#if 0
+	img_show_cli(img);
+	fprintf(stderr, "minh: %u, maxh: %u, minw: %u, maxu: %u\n", min_h, max_h, min_w, max_w);
+#endif
+	for (unsigned int dh = 0; dh <= max_h - min_h; dh++)
+		for (unsigned int dw = 0; dw <= max_w - min_w; dw++)
+			new_img->pix[hstart + dh][wstart + dw] = img->pix[min_h + dh][min_w + dw];
+img_center_end:
+	FREE(img);
 	return new_img;
 }
 
@@ -135,6 +174,9 @@ img_t *img_reduce(img_t *img, unsigned int ratio)
 /* display image in CLI */
 void img_show_cli(img_t *img)
 {
+	for (unsigned int j = 0; j < img->w; j++)
+		printf(".");
+	printf("\n");
 	for(unsigned int i = 0; i < img->h; i++) {
 		for (unsigned int j = 0; j < img->w; j++) {
 			if (img->pix[i][j]) {
@@ -145,6 +187,9 @@ void img_show_cli(img_t *img)
 		}
 		printf("\n");
 	}
+	for (unsigned int j = 0; j < img->w; j++)
+		printf(".");
+	printf("\n");
 	return;
 }
 #endif
@@ -186,14 +231,17 @@ img_t *img_load(FILE *file)
 	img->h = 0;
 	img->w = 0;
 	/* read h and w */
-	fread(&(img->h), sizeof(char), 1, file); 
-	fread(&(img->w), sizeof(char), 1, file); 
+	fread(&(img->h), sizeof(char), 1, file);
+	fread(&(img->w), sizeof(char), 1, file);
 	/* allocate pixels */
 	img->pix = img_allocate_pixels(img->h, img->w);
 	/* read pixels */
 	for (unsigned int h = 0; h < img->h; h++)
 		for (unsigned int w = 0; w < img->w; w++)
 			fread(&(img->pix[h][w]), sizeof(pix_t), 1, file);
+#ifdef DEBUG_IMG
+	img_show_cli(img);
+#endif
 	return img;
 }
 
