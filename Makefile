@@ -18,7 +18,10 @@ DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
 SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 
-debug: CFLAGS += -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD
+test_obfuscation: CFLAGS += -D TEST_OBFUSCATION # -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_2PAC
+test_obfuscation: $(OBJ)
+
+debug: CFLAGS += -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_2PAC
 debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
@@ -32,10 +35,8 @@ kd_load: $(EXEC)
 # Generic rules
 $(EXEC): $(OBJ)
 	$(CC) -o $@ $(OBJ) $(CFLAGS) $(LDFLAGS)
-	python2 ./script/2pac.py $(EXEC)
-	mv $(EXEC) $(EXEC).old
-	mv 2pac_$(EXEC) $(EXEC)
-	chmod +x $(EXEC)
+	python3 ./script/2pac.py $(EXEC) ./dbg/2pac.debugging_script ./include/gen/rc4_keys.txt
+	chmod u+x $(EXEC).2pac
 
 $(OBJDIR)/$(EXEC).o: $(DEPS)
 

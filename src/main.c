@@ -4,10 +4,12 @@
 #include "global.h"
 #include "core.h"
 #include "dbg.h"
+#ifndef TEST_OBFUSCATION
 #include "screen.h"
 #include "unpack.h"
 #include "packed/ocr.h"
 #include "packed/check.h"
+#endif
 
 /*
  * This is the debuggee, our child process.
@@ -80,10 +82,14 @@ void father(int child_pid, char *script_path)
 		waitpid(child_pid, &status, 0);
 		regs = dbg_regs_get();
 		if (WIFEXITED(status)) {
+#ifdef DEBUG_DEBUGGER
 			printf("Exited, status=%d\n", WEXITSTATUS(status));
+#endif
 			break;
 		} else if (WIFSIGNALED(status)) {
+#ifdef DEBUG_DEBUGGER
 			printf("Killed by signal %d\n", WTERMSIG(status));
+#endif
 			break;
 		} else if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
@@ -106,8 +112,6 @@ void father(int child_pid, char *script_path)
 
 int main(int argc, char **argv)
 {
-	child(argv[0]);
-	return 0;
 	if (argc < 2) {
 		fprintf(stderr, "Usage: ./%s /path/to/script.debugging_script -- aborting\n", argv[0]);
 		exit(1);

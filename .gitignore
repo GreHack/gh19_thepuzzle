@@ -12,3 +12,4 @@ include/gen/*.txt
 script/*.pyc
 data/
 .gdbinit
+__pycache__/

@@ -23,7 +23,7 @@ def logfail(t):
 
 def test_obfuscation():
     # Open the process and send every input, line by line
-    proc = subprocess.Popen(['./test_obfuscation_bin', '2pac.debugging_script'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+    proc = subprocess.Popen(['./test_obfuscation_bin.2pac', '2pac.debugging_script'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
     t = b'Obfuscation'
 
     # Close stdin
