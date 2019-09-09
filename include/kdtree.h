@@ -30,9 +30,22 @@ struct knode_st {
 	} node;
 };
 
+#ifndef KD_LOAD
+/* create a kd tree from a list of entries and a max depth */
 knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int depth);
-void kd_dump(knode_t *tree, FILE *file);
+#endif
+/* find the closest element to img in the kd tree
+ * outputs a pointer to the closest element and the distance (img, best)
+ */
 void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist);
-
+#ifndef KD_LOAD
+/* save kd structure in a file */
+void kd_dump(knode_t *tree, FILE *file);
+#else
+/* get a file descriptor to read kd from executable */
+FILE *kd_get_fd(char *path);
+/* load kd structure from a file */
+knode_t *kd_load(FILE *file);
 #endif
 
+#endif

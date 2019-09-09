@@ -181,3 +181,22 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 		}
 	}
 }
+
+FILE *kd_get_fd(char *path)
+{
+	FILE *fd = fopen(path, "r");
+	unsigned int size;
+	/* read size of kd data */
+	fseek(fd, -sizeof(unsigned int), SEEK_END);
+	if (1 != fread(&size, sizeof(unsigned int), 1, fd)) {
+#ifdef DEBUG_KD
+		fprintf(stderr, "Error reading");
+#endif
+		EXIT(1, "error reading size of kd data")
+	}
+#ifdef DEBUG_KD
+	fprintf(stderr, "Size: %u (0x%x)\n", size, size);
+#endif
+	fseek(fd, -sizeof(unsigned int) - size, SEEK_END);
+	return fd;
+}

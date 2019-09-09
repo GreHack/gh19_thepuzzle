@@ -95,7 +95,7 @@ void father(int child_pid, char *script_path)
 
 int main(int argc, char **argv)
 {
-	child();
+	child(argv[0]);
 	return 0;
 	if (argc < 2) {
 		fprintf(stderr, "Usage: ./%s /path/to/script.debugging_script -- aborting\n", argv[0]);
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 #endif
 			usleep(100);
 		}
-		child();
+		child(argv[0]);
 	} else {
 #if DEBUG_MAIN
 		fprintf(stderr, "Father created: %d, child is: %d\n", father_pid, child_pid);
