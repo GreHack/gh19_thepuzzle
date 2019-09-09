@@ -99,9 +99,9 @@ knode_t *kd_load_inode(FILE *file)
 	node->node.inode.entry = ocr_load_entry(file);
 #ifdef DEBUG_KD
 	if (node->node.inode.entry->img->h <= node->node.inode.coord[0])
-		exit(1);
+		EXIT(1, "error reading coordinates of inode")
 	if (node->node.inode.entry->img->w <= node->node.inode.coord[1])
-		exit(1);
+		EXIT(1, "error reading coordinates of inode")
 #endif
 	node->node.inode.left = NULL;
 	node->node.inode.right = NULL;
@@ -135,11 +135,10 @@ knode_t *kd_load(FILE *file)
 		kn->node.inode.right = kd_load(file);
 		break;
 	case 'L':
-		kn = NULL;
 		kn = kd_load_leaf(file);
 		break;
 	default:
-		exit(1);
+		EXIT(1, "error reading node type")
 	}
 	return kn;
 }
@@ -158,7 +157,7 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 		}
 	} else {
 		if (!node->node.inode.left || !node->node.inode.right) {
-			exit(1);
+			EXIT(1, "one of the children is NULL")
 		}
 		unsigned int h, w;
 		h = node->node.inode.coord[0];
