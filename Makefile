@@ -33,8 +33,8 @@ flag:
 kd_load: CFLAGS += -D KD_LOAD
 kd_load: $(EXEC)
 	python3 script/rc4.py "This program cannot be run in DOS mode" data/kd.bin data/kd.enc
-	cat data/kd.enc >> $(EXEC)
-	python -c "import struct; print(struct.pack('<I', $$(wc -c < data/kd.bin)))" | head -c -1 >> $(EXEC)
+	cat data/kd.enc >> $(EXEC).2pac
+	python2 -c "import struct; print(struct.pack('<I', $$(wc -c < data/kd.bin)))" | head -c -1 >> $(EXEC).2pac
 		
 # Generic rules
 $(EXEC): $(OBJ)
