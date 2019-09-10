@@ -1,11 +1,11 @@
 # DONE
 - Ajouter des labels dans les scripts de debug
-
-# WIP
-- Packer: Faire un packer qui inverse juste tous les bytes de la fonction (Marrant non ?)
 - jumps -> set les adresses a 0
   -> repatch avec write memory dans le debugger
   -> repatch avec breakpoint et handler de fonction
+
+# WIP
+- Packer: Faire un packer qui inverse juste tous les bytes de la fonction (Marrant non ?)
 - Modifier les flags (pour les jumps, hihi)
 - Ajouter une commande dans l'interpreteur qui n'est jamais utilisee
   (Crash IDA par exemple)

@@ -25,8 +25,16 @@ def RC4_crypt(key, clear):
 
 
 if __name__ == "__main__":
-	if len(sys.argv) < 4:
-		print("usage: {} <key> <in> <out>".format(sys.argv[0]))
-		exit(1)
-	open(sys.argv[3], 'w').write(RC4_crypt(sys.argv[1], open(sys.argv[2]).read()))
+    if len(sys.argv) < 4:
+        print('Usage: {} <key> <in> <out>'.format(sys.argv[0]))
+        exit(1)
+
+    key = sys.argv[1].encode()
+    f_in = sys.argv[2]
+    f_out = sys.argv[3]
+
+    with open(f_out, 'wb') as f:
+        data = open(f_in, 'rb').read()
+        crypt = RC4_crypt(key, data)
+        f.write(crypt)
 
