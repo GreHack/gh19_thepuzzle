@@ -12,7 +12,7 @@ from os import getenv
 TUPAC_BEG_MARKER = b'GiveUs2PacBack'
 TUPAC_END_MARKER = b'LetTheLegendResurrect'
 
-R2_PATH = getenv('HOME') + '/.local/bin'
+R2_PATH = None # getenv('HOME') + '/.local/bin'
 r2 = None
 
 
