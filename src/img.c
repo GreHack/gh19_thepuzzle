@@ -131,42 +131,41 @@ img_t *img_reduce(img_t *img, unsigned int ratio)
 	return new_img;
 }
 
-img_t *img_center(img_t *img)
+img_t *img_center(img_t *img, unsigned int *min_h, unsigned int *max_h, unsigned int *min_w, unsigned int *max_w)
 {
 	img_t *new_img = (img_t *) malloc(sizeof(img_t));
 	new_img->h = img->h;
 	new_img->w = img->w;
 	new_img->pix = img_allocate_pixels(img->h, img->w);
-	/* Compute center */
-	unsigned int min_h = img->h - 1, max_h = 0, min_w = img->w - 1, max_w = 0;
+	/* init min & max values */
+	*min_h = img->h - 1;
+	*max_h = 0;
+	*min_w = img->w - 1;
+	*max_w = 0;
+	/* compute center */
 	for (unsigned int dh = 0; dh < img->h; dh++) {
 		for (unsigned int dw = 0; dw < img->w; dw++) {
 			if (img->pix[dh][dw]) {
-				if (min_h > dh)
-					min_h = dh;
-				if (min_w > dw)
-					min_w = dw;
-				if (max_h < dh)
-					max_h = dh;
-				if (max_w < dw)
-					max_w = dw;
+				if (*min_h > dh)
+					*min_h = dh;
+				if (*min_w > dw)
+					*min_w = dw;
+				if (*max_h < dh)
+					*max_h = dh;
+				if (*max_w < dw)
+					*max_w = dw;
 			}
 		}
 	}
-	if (max_w == 0 || max_h == 0)
+	if (*max_w == 0 || *max_h == 0)
 		goto img_center_end;
 	unsigned int hstart, wstart;
-	hstart = (img->h - (max_h - min_h))/2;
-	wstart = (img->w - (max_w - min_w))/2;
-#if 0
-	img_show_cli(img);
-	fprintf(stderr, "minh: %u, maxh: %u, minw: %u, maxu: %u\n", min_h, max_h, min_w, max_w);
-#endif
-	for (unsigned int dh = 0; dh <= max_h - min_h; dh++)
-		for (unsigned int dw = 0; dw <= max_w - min_w; dw++)
-			new_img->pix[hstart + dh][wstart + dw] = img->pix[min_h + dh][min_w + dw];
+	hstart = (img->h - (*max_h - *min_h))/2;
+	wstart = (img->w - (*max_w - *min_w))/2;
+	for (unsigned int dh = 0; dh <= *max_h - *min_h; dh++)
+		for (unsigned int dw = 0; dw <= *max_w - *min_w; dw++)
+			new_img->pix[hstart + dh][wstart + dw] = img->pix[*min_h + dh][*min_w + dw];
 img_center_end:
-	FREE(img);
 	return new_img;
 }
 
@@ -198,13 +197,18 @@ void img_show_cli(img_t *img)
 /* CAUTION: returns square of dist */
 float img_dist(img_t *i1, img_t *i2)
 {
-	float dist = 0;
+	float dist = 0.0;
 	if (i1->h != i2->h || i1->w != i2->w) {
 		exit(1);
 	}
 	for (unsigned int i = 0; i < i1->h; i++) {
 		for (unsigned int j = 0; j < i1->w; j++) {
-			dist += pow(i1->pix[i][j] - i2->pix[i][j], 2.0);
+			if (i1->pix[i][j] != i2->pix[i][j]) {
+				dist += pow(i1->pix[i][j] - i2->pix[i][j], 2.0);
+#ifdef DEBUG_OCR
+				// fprintf(stderr, "h: %u | w: %u | p1: %u | p2: %u\n", i, j, i1->pix[i][j], i2->pix[i][j]);
+#endif
+			}
 		}
 	}
 	return dist;

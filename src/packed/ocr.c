@@ -22,15 +22,16 @@
 #define MGC_DATA	0x00000803
 
 /* read options: width and height of squares to perform OCR on */
-#define READ_W 28*2
-#define READ_H 28*2
+#define RATIO 2
+#define READ_W 28*RATIO
+#define READ_H 28*RATIO
 /* min. size of a white rectangle large enough to contain the flag */
 #define WRECT_MIN_W FLAG_LEN * READ_W
 
 /* distance threshold - the distance between the input 
    and the closest element of the dataset should be lower
    than this value for a digit to be recognized */
-#define DIST_THRESHOLD 	3000000
+#define DIST_THRESHOLD 	2500000
 
 /* read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
@@ -65,12 +66,13 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 			unsigned char pixval;
 			pixval = (char) fgetc(fdata);
 			/* set pixel in structure */
-			img->pix[dh][dw] = pixval;
+			img->pix[dh][dw] = pixval?255:0;
 			nb_read += 1;
 		}
 	}
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
-	entry->img = img_center(img);
+	unsigned int a, b, c, d;
+	entry->img = img_center(img, &a, &b, &c, &d);
 	entry->label = map[fgetc(flabel)];
 	return entry;
 }
@@ -97,11 +99,14 @@ void ocr_next_white_rectangle(img_t *img, unsigned int *h, unsigned int *w)
 		/* check for white pixels on the top and bottom borders */
 		for (unsigned int dw = senti->w; dw < senti->w + WRECT_MIN_W; dw++) {
 			white &= (img->pix[senti->h][dw] == 0);
+			white &= (img->pix[senti->h + 1][dw] == 0);
 			white &= (img->pix[senti->h+READ_H - 1][dw] == 0);
+			white &= (img->pix[senti->h+READ_H - 2][dw] == 0);
 		}
 		/* check for white pixels on left border */
 		for (unsigned int dh = senti->h; dh < senti->h + READ_H; dh++) {
 			white &= (img->pix[dh][senti->w] == 0);
+			white &= (img->pix[dh][senti->w + 1] == 0);
 		}
 		/* if borders are white, then return the position of the top-left corner of 
 		   this white rectangle */
@@ -160,11 +165,14 @@ char ocr_nearest_kd(ocr_t *ocr, img_t *img)
 	entry_t *best;
 	float dist = FLT_MAX;
 	kd_search(ocr, img, &best, &dist);
+#ifdef DEBUG_OCR
+	img_show_cli(img);
+	img_show_cli(best->img);
+	fprintf(stderr, "dist: %f\n", img_dist(best->img, img));
+	fprintf(stderr, "dist returned: %f\n", dist);
+#endif
 	if (dist > DIST_THRESHOLD)
 		return '!';
-#ifdef DEBUG_OCR
-	printf("dist: %f\n", img_dist(best->img, img));
-#endif
 	return best->label;
 }
 
@@ -241,45 +249,29 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 
 #endif
 
-/* return true iif the image given as an input has white pixels 
-   in the top and bottom borders */
-bool ocr_in_white_rectangle(img_t *img)
-{
-	for(unsigned int w = 0; w < img->w; w++) {
-		/* check top pix */
-		if (img->pix[0][w]) {
-			return false;
-		}
-		/* check bottom pix */
-		if (img->pix[img->h - 1][w]) {
-			return false;
-		}
-	}
-	return true;
-}
-
 /* fast check to avoid heavy ocr detection on squares that are not good candidates
    use several heuristics such as the number of pixels */
-bool ocr_fast_filter(img_t *img, unsigned int nb_pix, bool *in_white_rectangle)
+bool ocr_fast_filter(img_t *img, unsigned int nb_pix, unsigned int min_h, unsigned int max_h, unsigned int min_w, unsigned int max_w, bool *in_white_rectangle)
 {
-	*in_white_rectangle = ocr_in_white_rectangle(img);
-	if (nb_pix < 50 || nb_pix < 400)
+#if DEBUG_OCR
+	fprintf(stderr, "minw: %u | maxw: %u | minh: %u | maxh: %u\n", min_w, max_w, min_h, max_h);
+#endif
+	*in_white_rectangle = (min_h > 0 && max_h < img->h - 1 && min_w > 0 && max_w < img->w - 1);
+	if (nb_pix < 50 || nb_pix > 400) {
+#ifdef DEBUG_OCR
+		fprintf(stderr, "wrong nb of pixels (%u)\n", nb_pix);
+#endif
 		return false;
-	if (!in_white_rectangle)
+	}
+	if (!*in_white_rectangle) {
+#ifdef DEBUG_OCR
+		fprintf(stderr, "not in white rectangle\n");
+#endif
 		return false; 
-	for(unsigned int w = 0; w < img->w; w++) {
-		if (img->pix[0][w])
-			return false;
-		if (img->pix[img->h - 1][w])
-			return false;
 	}
-	for(unsigned int h = 0; h < img->h; h++) {
-		if (img->pix[h][0] + img->pix[h][1])
-			return false;
-		if (img->pix[h][img->w - 1] + img->pix[h][img->w - 2])
-			return false;
-	}
+	/* additional constraint on width */
 	return true;
+ //	(min_w > 1 && max_w < img->w - 2);
 }
 
 /* find the last column of pixels where there is at least one non-white pixel */
@@ -293,6 +285,7 @@ unsigned int ocr_w_last_pix(img_t *img)
 	}
 	return 0;
 }
+
 #ifdef DEBUG_OCR
 
 char ocr_revert_map(char c)
@@ -325,6 +318,22 @@ char ocr_revert_map(char c)
 
 #endif
 
+img_t *ocr_focus(img_t *img, unsigned int h, unsigned int w, unsigned int *nb_pix, unsigned int *min_h, unsigned int *max_h, unsigned int *min_w, unsigned int *max_w)
+{
+	/* crop image to focus on current rectangle */
+	img_t *cropped = img_crop(img, h, w, READ_H, READ_W, nb_pix);
+#ifdef DEBUG_OCR	
+	img_show_cli(cropped);
+#endif
+	/* center image to make detection easier */
+	img_t *centered = img_center(cropped, min_h, max_h, min_w, max_w);
+	FREE(cropped);
+	/* reduce it to the size of kd tiles */
+	img_t *reduced = img_reduce(centered, RATIO);
+	FREE(centered);
+	return reduced;
+}
+
 /* read the flag with ocr on the image given as a parameter 
    return the flag as a string if found, NULL otherwise */
 char *ocr_read_flag(ocr_t *ocr, img_t *img)
@@ -341,6 +350,14 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 	input[FLAG_LEN] = '\0';
 	/* number of chars read */
 	unsigned int input_len = 0;
+	/* number of non-white pixels in the current reading rectangle */
+	unsigned int nb_pix;
+	/* min and max w coordinates for, resp., the first and the last non-white pixel */
+	unsigned int min_w, max_w;
+	/* min and max h coordinates for, resp., the first and the last non-white pixel */
+	unsigned int min_h, max_h;
+	ocr_next_white_rectangle(img, &h, &w);
+	/* main detection loop */
 	while (h < img->h - READ_H && w < img->w - READ_W) {
 		/* if flag has correct length, let's return it */
 		if (input_len == FLAG_LEN) {
@@ -349,44 +366,38 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 #endif
 			break;
 		}
-		unsigned int nb_pix;
-		img_t *cropped = img_crop(img, h, w, READ_H, READ_W, &nb_pix);
-		unsigned int last_w = ocr_w_last_pix(cropped);
-		img_t *reduced = img_reduce(cropped, READ_H / 28);
-		if (nb_pix)
-			reduced = img_center(reduced);
-		img_free(cropped);
-		if (!ocr_fast_filter(reduced, nb_pix, &in_white_rectangle)) {
-			img_free(reduced);
-			w += READ_W / 8;
-			if (w + READ_W >= img->w) {
-				w = 0;
-				h += READ_H / 4;
-				input_len = 0;
-			}
-			if (!in_white_rectangle) {
-				ocr_next_white_rectangle(img, &h, &w);
-				input_len = 0;
-			}
-			continue;
-		}
-		char c = ocr_recognize(ocr, reduced);
-		if (c != '!') {
-#ifdef DEBUG_OCR
-			fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", ocr_revert_map(c), nb_pix);
-			img_show_cli(reduced);
+		/* crop image to focus detection on current position */
+		img_t *rect = ocr_focus(img, h, w, &nb_pix, &min_h, &max_h, &min_w, &max_w);
+		if (ocr_fast_filter(rect, nb_pix/(RATIO * RATIO), min_h / RATIO, max_h / RATIO, min_w / RATIO, max_w / RATIO, &in_white_rectangle)) {
+#ifdef DEBUG_OCR	
+			fprintf(stderr, "Fast check: OK\n");
+			img_show_cli(rect);
 #endif
-			w += last_w;
-			input[input_len] = c;
-			input_len++;
+			char c = ocr_recognize(ocr, rect);
+			if (c != '!') {
+#ifdef DEBUG_OCR	
+				fprintf(stderr, "Recognized!! %c | nb_pix = %u\n", ocr_revert_map(c), nb_pix);
+				img_show_cli(rect);
+#endif
+				input[input_len] = c;
+				input_len++;
+			}
 		}
-		img_free(reduced);
-		w += READ_W / 8;
+		if (in_white_rectangle) {
+			w += READ_W - 1;
+		} else {
+			if (min_w < 4) {
+				w += max_w;
+			} else {
+				w += min_w - 2;
+			}
+		}
 		if (w + READ_W >= img->w) {
-			w = 0;
-			h += READ_H / 4;
+			ocr_next_white_rectangle(img, &h, &w);
 			input_len = 0;
+			break;
 		}
+		img_free(rect);
 	}
 	if (input_len < FLAG_LEN) {
 		free(input);

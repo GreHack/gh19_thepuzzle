@@ -42,7 +42,7 @@ void img_to_file(img_t *img, char *filepath);
 void img_show_cli(img_t *img); 
 #endif
 float img_dist(img_t *i1, img_t *i2);
-img_t *img_center(img_t *img);
+img_t *img_center(img_t *img, unsigned int *min_h, unsigned int *max_h, unsigned int *min_w, unsigned int *max_w);
 
 #ifdef KD_DUMP
 void img_dump(img_t *img, FILE *file);
