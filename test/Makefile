@@ -27,7 +27,7 @@ test_obfuscation_bin: test_obfuscation.c
 	@$(CC) -o $@ test_obfuscation.c ../obj/unpack.o ../obj/dbg.o ../obj/main.o ../obj/rc4.o ../obj/dbg_parser.o $(CFLAGS) $(LDFLAGS) $(DBG)
 
 test_obfuscation_bin.2pac: test_obfuscation_bin ../script/2pac.py
-	@python3 ../script/2pac.py $< $(DBGSCRIPT) ../include/gen/rc4_keys.txt 2>&1 >/dev/null
+	@python3 ../script/2pac.py $< $(DBGSCRIPT) ../include/gen/rc4_keys.txt
 	@chmod +x $@
 
 clean:
