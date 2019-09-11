@@ -43,32 +43,45 @@ def obfuscate_function(beg, end):
         opcode = bytes.fromhex(instr['bytes'])
 
         # Obfuscation is here
-        if instr['type'] in ['jmp', 'ujmp']:
-            destination = randint(0, 255)
-            original = opcode[1]
+        if instr['type'] in ['jmp', 'ujmp', 'cjmp']:
+            ## Make jump destination random
+            n = instr['size'] - 1
+            destination = [randint(0, 255) for _ in range(n)]
+            original = int.from_bytes(opcode[1:], byteorder='big')
+            new_opcode = opcode[:1] + bytes(destination)
 
-            new_opcode = opcode[:1] + bytes([destination])
-            assert(len(new_opcode) == len(opcode))
-            r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
-
-            fname = next(gen_func_name())
             # Add calls to patch the bytes
-            cmds.append('begin {}\nw {} {}\nend'.format(fname, offset + 1, original))
+            fname = next(gen_func_name())
+            # TODO Fix that
+            if False and opcode[0] in [0x76, 0x77]: # jbe, ja
+                ## Invert jump condition and invert flag during run time
+                # jbe: cf = 1 or zf = 1
+                # ja:  cf = 0 and zf = 0
+                print('OKAY DOKAY', offset)
+                new_opcode = bytes([opcode[0] ^ 1] + destination)
+                cmds.append('begin {}\nw {} {}\nf z\nf c\nend'.format(fname, offset + 1, original))
+            else:
+                cmds.append('begin {}\nw {} {}\nend'.format(fname, offset + 1, original))
             cmds.append('bh {} {}'.format(offset, fname))
+            assert len(new_opcode) == len(opcode), b'New: ' + new_opcode + b' ' + opcode
+
             # Add calls to repatch bad bytes at the end of the function
             # To avoid people from just dumping the binary
             repatch.append((offset + 1, randint(0, 255)))
 
+            # Patch the binary
+            r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
         offset += instr['size']
 
     # Add a debugger function called at the end of a function
     # that will repatch everything done
-    fcname = next(gen_func_name())
-    cmds.append('begin {}'.format(fcname))
-    for patch in repatch:
-        cmds.append('w {} {}'.format(patch[0], patch[1]))
-    cmds.append('end')
-    cmds.append('bh {} {}'.format(end, fcname))
+    if repatch:
+        fcname = next(gen_func_name())
+        cmds.append('begin {}'.format(fcname))
+        for patch in repatch:
+            cmds.append('w {} {}'.format(patch[0], patch[1]))
+        cmds.append('end')
+        cmds.append('bh {} {}'.format(end, fcname))
     return cmds
 
 
@@ -142,7 +155,7 @@ def tupac(binary, keyfile):
         pack_beg = data.find(TUPAC_BEG_MARKER, func_beg + 1)
         pack_end = data.find(TUPAC_END_MARKER, pack_beg)
         func_end = data.find(b'\xc3', pack_end + len(TUPAC_END_MARKER))
-        log('Packing function at 0x{:x} with key "{}"'.format(func_beg, key.hex()))
+        log('Packing function from 0x{:x} to 0x{:x} with key "{}"'.format(func_beg, func_end, key.hex()))
 
         ## Nop the markers
         data = list(data)
@@ -158,12 +171,12 @@ def tupac(binary, keyfile):
         ## Pack the function
         data = bytes(data)
         crypt = RC4_crypt(key, data[func_beg:func_end+1])
-        with open('/tmp/fu', 'wb') as f:
-            f.write(crypt)
         data = data[:func_beg] + crypt + data[func_end + 1:]
 
         ## Add a call to the unpacking handler for this offset
         commands.append('b {} {}'.format(func_beg, unpacker_addr))
+        ## Add a call to repack the function at the end
+        commands.append('b {} {}'.format(func_end, unpacker_addr, func_beg))
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))

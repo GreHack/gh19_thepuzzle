@@ -44,6 +44,9 @@ void dbg_regs_set(struct user_regs_struct *regs);
 bool dbg_function_register(const char* firstline, FILE *fileptr);
 void dbg_function_call(const char *uhandler);
 
+// Simulate the ret instruction
+void dbg_action_ret();
+
 
 /* dbg_parser.c */
 void dbg_parse_command(const char* input);

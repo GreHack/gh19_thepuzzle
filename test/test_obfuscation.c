@@ -3,11 +3,39 @@
 #include "global.h"
 #include <string.h>
 
+//#undef TUPAC_BEG
+//#undef TUPAC_END
+//#define TUPAC_BEG
+//#define TUPAC_END
+
+int try_me(int n)
+{
+	TUPAC_BEG
+	int val = 0;
+	val = val + 10;
+	val = val - 10;
+	if (n < -10) {
+		val++;
+	} else if (n < -100) {
+		val += 100;
+	} else if (n > 123123123) {
+		val -= 1000000;
+	}
+	TUPAC_END
+	return val;
+}
+
+void useless_padding(int a)
+{
+	int x = 20 + a;
+	x *= a;
+}
+
 int another_function(int total)
 {
 	TUPAC_BEG
 	int r = total % 5;
-	int val = 0;
+	int val = try_me(total + r);
 	switch (r) {
 	case 0:
 		val += 1;

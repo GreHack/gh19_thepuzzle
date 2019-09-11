@@ -277,12 +277,14 @@ bool ocr_fast_filter(img_t *img, unsigned int nb_pix, unsigned int min_h, unsign
 /* find the last column of pixels where there is at least one non-white pixel */
 unsigned int ocr_w_last_pix(img_t *img)
 {
+	TUPAC_BEG
 	for (unsigned dw = img->w - 1; dw > 0; dw--) {
 		for (unsigned int dh = 0; dh < img->h; dh++) {
 			if (img->pix[dh][dw])
 				return dw;
 		}
 	}
+	TUPAC_END
 	return 0;
 }
 

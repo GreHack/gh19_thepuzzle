@@ -360,6 +360,12 @@ void dbg_continue(bool restore)
 #ifdef DEBUG_DEBUGGER
 		fprintf(stderr, " Resuming on instruction: %lx\n", orig);
 #endif
+		if ((orig & 0xFF) == 0xcc) {
+#ifdef DEBUG_DEBUGGER
+			fprintf(stderr, "Restoring was forced, as we don't want to execute an interruption\n");
+#endif
+			restore = true;
+		}
 		if (restore) {
 			long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
 #ifdef DEBUG_DEBUGGER
@@ -417,6 +423,9 @@ uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes)
 	void *addr = (void *) g_baddr + offset;
 	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
 		ret = ptrace(PTRACE_PEEKTEXT, g_pid, addr + i, 0);	
+		if (ret == -1) {
+			dbg_die("Reading memory failed!");
+		}
 		buffer[i] = ret & 0xFF;
 		buffer[i + 1] = (ret >>  8) & 0xFF;
 		buffer[i + 2] = (ret >> 16) & 0xFF;
@@ -456,12 +465,12 @@ void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data)
 		} else {
 			word = *((unsigned long *) (data + i));
 		}
-		//uint8_t *fu = dbg_read_mem(offset + i, nb_bytes);
-		//fprintf(stderr, "---------BEFORE WRITE: (%x) %016lx\n", offset + i, *((uint64_t*)fu));
+		//uint8_t *fu = dbg_mem_read(offset + i, nb_bytes);
+		//fprintf(stderr, "---------BEFORE WRITE: (%lx) %016lx\n", offset + i, *((uint64_t*)fu));
 		//fprintf(stderr, "---------       WRITE:        %016lx\n", word);
 		ptrace(PTRACE_POKETEXT, g_pid, addr + i, word);
-		//fu = dbg_read_mem(offset + i, nb_bytes);
-		//fprintf(stderr, "----------AFTER WRITE: (%x) %016lx\n", offset + i, *((uint64_t*)fu));
+		//fu = dbg_mem_read(offset + i, nb_bytes);
+		//fprintf(stderr, "----------AFTER WRITE: (%lx) %016lx\n", offset + i, *((uint64_t*)fu));
 	}
 }
 
@@ -496,6 +505,13 @@ struct user_regs_struct *dbg_regs_get(void)
 void dbg_regs_set(struct user_regs_struct *regs)
 {
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
+}
+
+void dbg_regs_flag_reverse(char flag)
+{
+	struct user_regs_struct* regs = dbg_regs_get();
+	if (flag == 'z') {
+	}
 }
 
 bool dbg_function_register(const char* firstline, FILE *fileptr)
@@ -581,5 +597,16 @@ void dbg_function_call(const char *uhandler)
 		// Switch to next function
 		fptr = fptr->next;
 	}
+}
+
+void dbg_action_ret()
+{
+	struct user_regs_struct *regs = dbg_regs_get();
+	uint8_t *ptr = dbg_mem_read_va(regs->rsp, 8);
+	regs->rsp += 8;
+	regs->rip = *((uint64_t *)ptr);
+	dbg_regs_set(regs);
+	free(ptr);
+	free(regs);
 }
 

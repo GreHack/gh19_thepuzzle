@@ -11,6 +11,7 @@
 
 bool check_flag(char *input)
 {
+	TUPAC_BEG
 	unsigned char input_hash[32];
 	SHA256_CTX *ctx = (SHA256_CTX *) malloc(sizeof(SHA256_CTX));;
 	sha256_init(ctx);
@@ -32,5 +33,7 @@ bool check_flag(char *input)
 		fprintf(stderr, "%02x", 0xff & flag_hash[i]);
 	fprintf(stderr, "\n"); 
 #endif
-	return 0 == strncmp((char *) input_hash, (char *) flag_hash, 32);
+	bool res = 0 == strncmp((char *) input_hash, (char *) flag_hash, 32);
+	TUPAC_END
+	return res;
 }

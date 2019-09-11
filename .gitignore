@@ -14,3 +14,4 @@ script/*.pyc
 data/
 .gdbinit
 __pycache__/
+perf.data
