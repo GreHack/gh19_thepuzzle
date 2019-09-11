@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "dbg.h"
+#include "global.h"
 #include "rc4.h"
 
 const char *unpack_get_key(uint8_t *mem)
@@ -26,7 +27,7 @@ const char *unpack_get_key(uint8_t *mem)
 			fprintf(stderr, "[kidx=%03u] K: %02x%02x%02x -> %02x %02x %02x\n", kidx, rc4_keys[kidx][0] & 0xFF, rc4_keys[kidx][1] & 0xFF, rc4_keys[kidx][2] & 0xFF, output[0] & 0xFF, output[1] & 0xFF, output[2] & 0xFF); 
 #endif
 		}
-		free(output);
+		FREE(output);
 	}
 	return NULL;
 }
@@ -72,8 +73,8 @@ int unpack(uint64_t offset)
 	mem[0] = 0x55;
 	dbg_mem_write(offset, i+1, mem);
 	dbg_breakpoint_enable(offset + 1, 0x1000, true);
-	free(rstate);
-	free(mem);
+	rc4_free(rstate);
+	FREE(mem);
 	return 0;
 }
 

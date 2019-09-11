@@ -55,11 +55,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 	/* mapping for OCR */
 	char map[10] = { '#', 'G', 'r', 'e', 'H', 'a', 'c', 'k', '1', '9'};
 	unsigned int nb_read = 0;
-	img_t *img = (img_t *) malloc(sizeof(img_t));
-	img->h = h;
-	img->w = w;
-	/* allocate pixels */
-	img->pix = img_allocate_pixels(h, w);
+	img_t *img = img_alloc(h, w);
 	for (unsigned int dh = 0; dh < h; dh++) {
 		for (unsigned int dw = 0; dw < w; dw++) {
 			/* read pixel */
@@ -73,6 +69,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
 	unsigned int a, b, c, d;
 	entry->img = img_center(img, &a, &b, &c, &d);
+	img_free(img);
 	entry->label = map[fgetc(flabel)];
 	return entry;
 }
@@ -234,6 +231,7 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 #if KD_TREE
 	/* constuct a kd-tree */
 	ocr_t *ocr = kd_create(entries, nb_label, 0);
+	ocr->entries = entries;
 #else
 	/* construct an array */
 	ocr_t *ocr = malloc(sizeof(ocr_t));
@@ -244,6 +242,8 @@ ocr_t *ocr_train(char *label_path, char *data_path)
 	for (unsigned int i = nb_label - 100; i < nb_label; i++)
 		kd_test(ocr, entries[i]->img);
 #endif
+	fclose(flabel);
+	fclose(fdata);
 	return ocr;
 }
 
@@ -327,10 +327,10 @@ img_t *ocr_focus(img_t *img, unsigned int h, unsigned int w, unsigned int *nb_pi
 #endif
 	/* center image to make detection easier */
 	img_t *centered = img_center(cropped, min_h, max_h, min_w, max_w);
-	FREE(cropped);
+	img_free(cropped);
 	/* reduce it to the size of kd tiles */
 	img_t *reduced = img_reduce(centered, RATIO);
-	FREE(centered);
+	img_free(centered);
 	return reduced;
 }
 
@@ -400,7 +400,7 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 		img_free(rect);
 	}
 	if (input_len < FLAG_LEN) {
-		free(input);
+		FREE(input);
 		input = NULL;
 	}
 	return input;
@@ -432,3 +432,10 @@ entry_t *ocr_load_entry(FILE *file)
 }
 
 #endif
+
+void ocr_free_entry(entry_t *entry)
+{
+	img_free(entry->img);
+	FREE(entry);
+	return;
+}

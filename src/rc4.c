@@ -2,11 +2,19 @@
 
 #include <stdlib.h>
 
+#include "global.h"
+
 struct rc4_state_s {
 	unsigned char *s;
 	int i;
 	int j;
 };
+
+void rc4_free(rc4_state_t *state)
+{
+	FREE(state->s);
+	FREE(state);
+}
 
 rc4_state_t *rc4_init(const char *key, int key_len)
 {
@@ -48,6 +56,6 @@ char *rc4_crypt(const char *key, int key_len, char *input, int input_len)
 	for (int idx = 0; idx < input_len; idx++) {
 		output[idx] = input[idx] ^ rc4_stream(state);
 	}
-	free(state);
+	rc4_free(state);
 	return output;
 }

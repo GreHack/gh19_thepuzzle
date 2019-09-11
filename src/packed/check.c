@@ -32,5 +32,6 @@ bool check_flag(char *input)
 		fprintf(stderr, "%02x", 0xff & flag_hash[i]);
 	fprintf(stderr, "\n"); 
 #endif
+	FREE(ctx);
 	return 0 == strncmp((char *) input_hash, (char *) flag_hash, 32);
 }

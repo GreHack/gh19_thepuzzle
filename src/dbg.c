@@ -5,6 +5,7 @@
 #include <string.h>
 #include <fcntl.h>
 
+#include "global.h"
 #include "unpack.h"
 
 /* Right now, our debugger can debug a unique target.
@@ -75,7 +76,7 @@ static bool bp_node_delete(dbg_bp *data) {
 			if (todelete == breakpoints) {
 				breakpoints = cur->next;
 			}
-			free(todelete);
+			FREE(todelete);
 			return true;
 		}
 		cur = cur->next;
@@ -202,7 +203,7 @@ void dbg_breakpoint_delete(void *addr)
 		bp = ptr->data;
 		if (bp->addr == (uint64_t) addr) {
 			if (bp_node_delete(bp)) {
-				free(bp);
+				FREE(bp);
 			} else {
 				fprintf(stderr, "ERROR: Could not delete breakpoint at %p\n", addr);
 			}
@@ -243,7 +244,7 @@ void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original
 			if (restore_original) {
 				uint8_t *data = dbg_mem_read(bp->addr - g_baddr, 1);
 				bp->orig_data = *data;
-				free(data);
+				FREE(data);
 			}
 			dbg_mem_write_va(bp->addr, 1, (uint8_t*)"\xcc");
 #ifdef DEBUG_DEBUGGER
@@ -452,7 +453,7 @@ void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data)
 			mask <<= (sizeof(long) - diff) * sizeof(long);
 			mask >>= (sizeof(long) - diff) * sizeof(long);
 			word |= mask;
-			free(old_data);
+			FREE(old_data);
 		} else {
 			word = *((unsigned long *) (data + i));
 		}
@@ -483,7 +484,7 @@ void dbg_mem_show(int offset, int len)
 			printf("\n[%016lx] ", addr + i);
 	}
 	printf("\n");
-	free(mem);
+	FREE(mem);
 }
 
 struct user_regs_struct *dbg_regs_get(void)
@@ -536,7 +537,7 @@ bool dbg_function_register(const char* firstline, FILE *fileptr)
 		prevline = &fline->next;
 
 		if (line) {
-			free(line);
+			FREE(line);
 			line = NULL;
 			nb = 0;
 		}

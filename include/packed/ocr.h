@@ -43,4 +43,5 @@ void ocr_dump_entry(entry_t *entry, FILE *file);
 entry_t *ocr_load_entry(FILE *file);
 #endif
 
+void ocr_free_entry(entry_t *entry);
 #endif

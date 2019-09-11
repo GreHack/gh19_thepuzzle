@@ -58,6 +58,16 @@ void obfuscation_main();
 		fprintf(stdout, "Come on, give me some input to process, man.\n");
 	}
 	FREE(input);
+#if KD_LOAD
+	kd_free(ocr, true);
+	rc4_free(kd_rc4_state);
+#else
+	entry_t **entries = ocr->entries;
+	kd_free(ocr, false);
+	if (entries)
+		FREE(entries);
+#endif
+	img_free(screenshot);
 	return;
 #endif
 }
@@ -110,7 +120,7 @@ void father(int child_pid, char *script_path)
 			printf("Continued\n");
 		}
 	}
-	free(regs);
+	FREE(regs);
 }
 
 int main(int argc, char **argv)

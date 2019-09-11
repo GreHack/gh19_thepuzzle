@@ -21,8 +21,11 @@ struct kleaf_st {
 };
 
 struct knode_st {
-	/* Either INODE or LEAF */
+	/* either INODE or LEAF */
 	unsigned char type;
+	/* pointer of the global list of entries to be able to free it
+	   at exit - this pointer, if not NULL, is the same for all kd nodes */
+	entry_t **entries;
 	union {
 		struct kinode_st inode;
 		struct kleaf_st leaf; 
@@ -38,6 +41,8 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
  * outputs a pointer to the closest element and the distance (img, best)
  */
 void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist);
+
+void kd_free(knode_t *tree, bool free_entries);
 
 #ifdef KD_DUMP
 /* save kd structure in a file */
