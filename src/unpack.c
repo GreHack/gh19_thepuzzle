@@ -31,14 +31,23 @@ const char *unpack_get_key(uint8_t *mem)
 	return NULL;
 }
 
-#define NFUNC 32
+#define MAX_UNPACK 50
+#define NFUNC 64
 static uint64_t already_packed[NFUNC] = { 0 };
 static uint64_t already_packed_end[NFUNC] = { 0 };
+static uint64_t map_du_pauvre[NFUNC] = { 0 };
+static int map_du_pauvre_val[NFUNC] = { 0 };
 
 int unpack(uint64_t offset)
 {
 	// Default encrypt = -1 means we will decrypt
 	int encrypt = -1;
+	bool doit = true;
+	int j = 0;
+	int state = 0;
+	const char *rc4_key;
+
+	// Check if we want to encrypt or decrypt the function
 	for (int i = 0; i < NFUNC; i++) {
 		if (already_packed_end[i] == offset) {
 			encrypt = i;
@@ -50,15 +59,39 @@ int unpack(uint64_t offset)
 	fprintf(stderr, "\n-----------> 2PAC (De/En)crypt: %d (0x%lx)\n", encrypt, offset);
 #endif
 
-	int i = 0;
-	int state = 0;
-	/* Find correct key */
-	const char *rc4_key;
+	// For performance purpose, we check how many time this function was packed
+	// and repacked in the past
+	if (encrypt == -1) {
+		for (j = 0; j < NFUNC; j++) {
+			if (map_du_pauvre[j] == offset || map_du_pauvre[j] == 0) {
+				break;
+			}
+		}
+
+		if (map_du_pauvre_val[j] >= MAX_UNPACK) {
+			// fprintf(stderr, "Skipping unpacking...\n");
+			goto end_unpack;
+		} else {
+			map_du_pauvre[j] = offset;
+			map_du_pauvre_val[j]++;
+		}
+	} else {
+		for (j = 0; j < NFUNC; j++) {
+			if (map_du_pauvre[j] == offset) {
+				break;
+			}
+		}
+		if (j != NFUNC && map_du_pauvre_val[j] >= MAX_UNPACK) {
+			// fprintf(stderr, "Skipping repacking...\n");
+			goto end_unpack;
+		}
+	}
 
 	// Disable breakpoints to work on proper memory
 	dbg_breakpoint_disable(offset, 0x1000);
 	uint8_t *mem = dbg_mem_read(offset, 0x1000);
 
+	// Get the rc4 key for encryption or decryption
 	if (encrypt == -1) {
 		rc4_key = unpack_get_key(mem);
 		if (!rc4_key) {
@@ -70,7 +103,10 @@ int unpack(uint64_t offset)
 	} else {
 		rc4_key = rc4_keys[rand() % 256];
 	}
+
+	// Start the en/decryption
 	rc4_state_t *rstate = rc4_init(rc4_key, KLEN);
+	int i = 0;
 	while (1) {
 		unsigned char x = rc4_stream(rstate);
 #ifdef DEBUG_2PAC
@@ -93,6 +129,8 @@ int unpack(uint64_t offset)
 		}
 		i += 1;
 	}
+
+	// Update the encryption/decryption map to know the beginning of the function
 	if (encrypt == -1) {
 		mem[0] = 0x55;
 		for (int j = 0; j < NFUNC; j++) {
@@ -106,14 +144,26 @@ int unpack(uint64_t offset)
 		already_packed[encrypt] = 0;
 		already_packed_end[encrypt] = 0;
 	}
+
+	// Write the new program to memory and reenable breakpoints
 	dbg_mem_write(offset, i+1, mem);
 	dbg_breakpoint_enable(offset, 0x1000, true);
+
+	// Free the memory
 	free(rstate);
 	free(mem);
 	
-	// Force ret execution
+	// Force ret execution when repacking (because 'ret' (0xc3) is now packed)
 	if (encrypt != -1) dbg_action_ret();
 
+#if 0
+	if (encrypt == -1) {
+		fprintf(stderr, "Unpacking 0x%lx\n", offset);
+	} else {
+		fprintf(stderr, "Repacking 0x%lx\n", offset);
+	}
+#endif
+end_unpack:
 	return 0;
 }
 

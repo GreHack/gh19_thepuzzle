@@ -311,6 +311,7 @@ void dbg_break_handle(uint64_t rip)
 #ifdef DEBUG_DEBUGGER
 	printf(">>>>>> Automatic continue after handling breakpoint!\n");
 #endif
+	// TODO With the fix in dbg_continue, this is probably useless now
 #ifndef TEST
 	dbg_continue(((void*)(bp->handler + g_baddr)) != unpack);
 #else

@@ -16,7 +16,7 @@ const char *token_name[END+1] = {
 	"END"
 };
 
-static int is_space(const char p)
+static inline int is_space(const char p)
 {
 	return p == ' ' || p == '\t' || p == '\n' || p == '\r';
 }
