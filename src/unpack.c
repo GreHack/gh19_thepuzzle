@@ -113,11 +113,6 @@ int unpack(uint64_t offset)
 	
 	// Force ret execution
 	if (encrypt != -1) dbg_action_ret();
-	if (encrypt == -1) {
-		fprintf(stderr, "Decrypted successfuly!\n");
-	} else {
-		fprintf(stderr, "Encrypted successfuly!\n");
-	}
 
 	return 0;
 }
