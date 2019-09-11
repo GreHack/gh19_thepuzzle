@@ -8,9 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "gen/flag.h"
 #include "global.h"
 #include "img.h"
-#include "flag.h"
 
 /* Global constants relative to OCR */
 #if KD_TREE

@@ -7,7 +7,7 @@
 
 #include "global.h"
 #include "sha256.h"
-#include "flag.h"
+#include "gen/flag.h"
 
 bool check_flag(char *input)
 {
