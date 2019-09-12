@@ -42,9 +42,40 @@ def obfuscate_function(beg, end):
             break
         opcode = bytes.fromhex(instr['bytes'])
 
+        #####################
         # Obfuscation is here
-        if instr['type'] in ['jmp', 'ujmp', 'cjmp']:
-            ## Make jump destination random
+        #####################
+
+        if opcode[0] in [0x76, 0x77]: # jbe, ja
+            # TODO ENABLE ME
+            if True:
+                continue
+            # Do not patch every jump, just do it randomly
+            if randint(0, 1):
+                continue
+
+            ## Patch2: Inverse jumps and patch flags during runtime
+            log('Patch2 at 0x{:x}'.format(offset))
+
+            # jbe: cf = 1 or zf = 1
+            # ja:  cf = 0 and zf = 0
+            new_opcode = bytes([opcode[0] ^ 1, opcode[1]])
+            fname = next(gen_func_name())
+            cmds.append('begin {}\nf z\nf c\nend'.format(fname))
+
+            # Patch the binary
+            r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
+            assert(len(new_opcode) == len(opcode))
+            assert(new_opcode != opcode)
+
+        elif instr['type'] in ['jmp', 'ujmp', 'cjmp']:
+            # Do not patch every jump, just do it randomly
+            if randint(0, 1):
+                continue
+
+            ## Patch1: Make jump destination random
+            log('Patch1 at 0x{:x}'.format(offset))
+
             n = instr['size'] - 1
             destination = [randint(0, 255) for _ in range(n)]
             original = int.from_bytes(opcode[1:], byteorder='big')
@@ -52,16 +83,7 @@ def obfuscate_function(beg, end):
 
             # Add calls to patch the bytes
             fname = next(gen_func_name())
-            # TODO Fix that
-            if False and opcode[0] in [0x76, 0x77]: # jbe, ja
-                ## Invert jump condition and invert flag during run time
-                # jbe: cf = 1 or zf = 1
-                # ja:  cf = 0 and zf = 0
-                print('OKAY DOKAY', offset)
-                new_opcode = bytes([opcode[0] ^ 1] + destination)
-                cmds.append('begin {}\nw {} {}\nf z\nf c\nend'.format(fname, offset + 1, original))
-            else:
-                cmds.append('begin {}\nw {} {}\nend'.format(fname, offset + 1, original))
+            cmds.append('begin {}\nw {} {}\nend'.format(fname, offset + 1, original))
             cmds.append('bh {} {}'.format(offset, fname))
             assert len(new_opcode) == len(opcode), b'New: ' + new_opcode + b' ' + opcode
 
@@ -71,6 +93,8 @@ def obfuscate_function(beg, end):
 
             # Patch the binary
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
+
+
         offset += instr['size']
 
     # Add a debugger function called at the end of a function

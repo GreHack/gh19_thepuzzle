@@ -31,7 +31,7 @@ const char *unpack_get_key(uint8_t *mem)
 	return NULL;
 }
 
-#define MAX_UNPACK 50
+#define MAX_UNPACK 20
 #define NFUNC 64
 static uint64_t already_packed[NFUNC] = { 0 };
 static uint64_t already_packed_end[NFUNC] = { 0 };
