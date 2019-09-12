@@ -23,7 +23,7 @@ test_obfuscation: CFLAGS += -D TEST_OBFUSCATION # -D DEBUG -D DEBUG_DEBUGGER # -
 test_obfuscation: $(OBJ)
 
 debug: CFLAGS += -g -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK # -D DEBUG_IMG
-debug: flag $(EXEC)
+debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
 release: flag kd_load
@@ -39,7 +39,7 @@ kd_load: $(EXEC)
 	python2 -c "import struct; print(struct.pack('<I', $$(wc -c < data/kd.bin)))" | head -c -1 >> $(EXEC).2pac
 		
 # Generic rules
-$(EXEC): $(OBJ)
+$(EXEC): flag $(OBJ)
 	$(CC) -o $@ $(OBJ) $(CFLAGS) $(LDFLAGS)
 	python3 ./script/2pac.py $(EXEC) ./dbg/2pac.debugging_script ./include/gen/rc4_keys.txt
 	chmod u+x $(EXEC).2pac
