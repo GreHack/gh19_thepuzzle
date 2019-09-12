@@ -7,7 +7,7 @@
 struct knode_st;
 typedef struct knode_st knode_t;
 
-#include "packed/ocr.h"
+#include "ocr.h"
 
 struct kinode_st {
     unsigned int coord[2];

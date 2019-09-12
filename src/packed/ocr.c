@@ -1,5 +1,5 @@
 
-#include "packed/ocr.h"
+#include "ocr.h"
 
 /* This will confuse people */
 #include <arpa/inet.h>
@@ -33,13 +33,16 @@
    than this value for a digit to be recognized */
 #define DIST_THRESHOLD 	2500000
 
+#ifndef KD_LOAD
 /* read unsigned int from file (big endian) */
 unsigned int ocr_read_uint(FILE *fd)
 {
+	TUPAC_BEG
 	unsigned int read_val;
 	if (fread(&read_val, sizeof(unsigned int), 1, fd) != 1) {
 		exit(1);
 	}
+	TUPAC_END
 	return htonl(read_val);
 }
 
@@ -52,6 +55,7 @@ bool ocr_check_magic(FILE *fd, unsigned int magic)
 /* read one entry for the data file to train the OCR */
 entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned int w)
 {
+	TUPAC_BEG
 	/* mapping for OCR */
 	char map[10] = { '#', 'G', 'r', 'e', 'H', 'a', 'c', 'k', '1', '9'};
 	unsigned int nb_read = 0;
@@ -74,8 +78,10 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
 	unsigned int a, b, c, d;
 	entry->img = img_center(img, &a, &b, &c, &d);
 	entry->label = map[fgetc(flabel)];
+	TUPAC_END
 	return entry;
 }
+#endif
 
 /* find next white rectangle in image where a flag could be detected by ocr
    - h and w are the current positions in the image where to start the research from;
@@ -84,6 +90,7 @@ entry_t *ocr_read_one_entry(FILE *flabel, FILE *fdata, unsigned int h, unsigned 
  */
 void ocr_next_white_rectangle(img_t *img, unsigned int *h, unsigned int *w)
 {
+	TUPAC_BEG
 	/* iterate over white pixels of the image */
 	pix_list_t *senti = img->wpix;
 	do {
@@ -113,7 +120,7 @@ void ocr_next_white_rectangle(img_t *img, unsigned int *h, unsigned int *w)
 		if (white) {
 			*h = senti->h; 
 			*w = senti->w;
-			return;
+			goto ocr_next_white_rectangle_ret;
 		}
 next:
 		/* next candidate on the list of white pixels */
@@ -122,6 +129,8 @@ next:
 	/* no more white rectangle */
 	*h = img->h;
 	*w = img->w;
+ocr_next_white_rectangle_ret:
+	TUPAC_END
 	return;
 }
 
@@ -134,8 +143,10 @@ next:
    search in an array */
 char ocr_nearest_array(ocr_t *ocr, img_t *img)
 {
+	TUPAC_BEG
 	float min_dist = INFINITY;
 	float dist;
+	char res;
 	entry_t *closest = NULL;
 	for (unsigned int i = 0; i < ocr->nb_entries; i++) {
 		dist = img_dist(img, ocr->entries[i]->img);
@@ -150,8 +161,11 @@ char ocr_nearest_array(ocr_t *ocr, img_t *img)
 	img_show_cli(closest->img);
 #endif
 	if (dist < 40000000)
-		return '!';
-	return closest->label;
+		res = '!';
+	else
+		res = xlosest->label;
+	TUPAC_END
+	return res;
 }
 
 /******************************************************************************/
@@ -162,6 +176,8 @@ char ocr_nearest_array(ocr_t *ocr, img_t *img)
    search in a kd tree */
 char ocr_nearest_kd(ocr_t *ocr, img_t *img)
 {
+	TUPAC_BEG
+	char res;
 	entry_t *best;
 	float dist = FLT_MAX;
 	kd_search(ocr, img, &best, &dist);
@@ -172,8 +188,11 @@ char ocr_nearest_kd(ocr_t *ocr, img_t *img)
 	fprintf(stderr, "dist returned: %f\n", dist);
 #endif
 	if (dist > DIST_THRESHOLD)
-		return '!';
-	return best->label;
+		res = '!';
+	else
+		res = best->label;
+	TUPAC_END
+	return res;
 }
 
 /******************************************************************************/
@@ -186,11 +205,13 @@ char ocr_nearest_kd(ocr_t *ocr, img_t *img)
    this function is structure-agnostic */
 char ocr_recognize(ocr_t *ocr, img_t *img)
 {
+	TUPAC_BEG
 #if KD_TREE
 	char nearest = ocr_nearest_kd(ocr, img);
 #else 
 	char nearest = ocr_nearest_array(ocr, img);
 #endif
+	TUPAC_END
 	return nearest;
 }
 
@@ -253,6 +274,8 @@ ocr_t *ocr_train(char *label_path, char *data_path)
    use several heuristics such as the number of pixels */
 bool ocr_fast_filter(img_t *img, unsigned int nb_pix, unsigned int min_h, unsigned int max_h, unsigned int min_w, unsigned int max_w, bool *in_white_rectangle)
 {
+	TUPAC_BEG
+	bool res = true;
 #if DEBUG_OCR
 	fprintf(stderr, "minw: %u | maxw: %u | minh: %u | maxh: %u\n", min_w, max_w, min_h, max_h);
 #endif
@@ -261,31 +284,34 @@ bool ocr_fast_filter(img_t *img, unsigned int nb_pix, unsigned int min_h, unsign
 #ifdef DEBUG_OCR
 		fprintf(stderr, "wrong nb of pixels (%u)\n", nb_pix);
 #endif
-		return false;
+		res = false;
 	}
 	if (!*in_white_rectangle) {
 #ifdef DEBUG_OCR
 		fprintf(stderr, "not in white rectangle\n");
 #endif
-		return false; 
+		res = false; 
 	}
-	/* additional constraint on width */
-	return true;
- //	(min_w > 1 && max_w < img->w - 2);
+	TUPAC_END
+	return res;
 }
 
 /* find the last column of pixels where there is at least one non-white pixel */
 unsigned int ocr_w_last_pix(img_t *img)
 {
 	TUPAC_BEG
+	unsigned int res = 0;
 	for (unsigned dw = img->w - 1; dw > 0; dw--) {
 		for (unsigned int dh = 0; dh < img->h; dh++) {
-			if (img->pix[dh][dw])
-				return dw;
+			if (img->pix[dh][dw]) {
+				res = dw;
+				goto ocr_w_last_pix_ret;
+			}
 		}
 	}
+ocr_w_last_pix_ret:
 	TUPAC_END
-	return 0;
+	return res;
 }
 
 #ifdef DEBUG_OCR
@@ -322,6 +348,7 @@ char ocr_revert_map(char c)
 
 img_t *ocr_focus(img_t *img, unsigned int h, unsigned int w, unsigned int *nb_pix, unsigned int *min_h, unsigned int *max_h, unsigned int *min_w, unsigned int *max_w)
 {
+	TUPAC_BEG
 	/* crop image to focus on current rectangle */
 	img_t *cropped = img_crop(img, h, w, READ_H, READ_W, nb_pix);
 #ifdef DEBUG_OCR	
@@ -333,6 +360,7 @@ img_t *ocr_focus(img_t *img, unsigned int h, unsigned int w, unsigned int *nb_pi
 	/* reduce it to the size of kd tiles */
 	img_t *reduced = img_reduce(centered, RATIO);
 	FREE(centered);
+	TUPAC_END
 	return reduced;
 }
 
@@ -340,6 +368,7 @@ img_t *ocr_focus(img_t *img, unsigned int h, unsigned int w, unsigned int *nb_pi
    return the flag as a string if found, NULL otherwise */
 char *ocr_read_flag(ocr_t *ocr, img_t *img)
 {
+	TUPAC_BEG
 #ifdef DEBUG_OCR
 	fprintf(stderr, "reading flag on the screen...\n");
 #endif
@@ -402,9 +431,10 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 		img_free(rect);
 	}
 	if (input_len < FLAG_LEN) {
-		free(input);
+		FREE(input);
 		input = NULL;
 	}
+	TUPAC_END
 	return input;
 }
 
@@ -425,11 +455,13 @@ void ocr_dump_entry(entry_t *entry, FILE *file)
 
 entry_t *ocr_load_entry(FILE *file)
 {
+	TUPAC_BEG
 	entry_t *entry = (entry_t *) malloc(sizeof(entry_t));
 	/* read label */
 	FREAD_KD(&(entry->label), sizeof(char), 1, file);  
 	/* read image */
 	entry->img = img_load(file);
+	TUPAC_END
 	return entry;	
 }
 

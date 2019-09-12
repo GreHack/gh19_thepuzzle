@@ -2,17 +2,18 @@
 SRCDIR=src
 OBJDIR=obj
 HDRDIR=include
+HDRPACKEDDIR=include/packed
 
 # CFlags
 EXEC=main
 CC=gcc
-CFLAGS=-Wall -Wextra -I$(HDRDIR) -fPIC -g
+CFLAGS=-Wall -Wextra -I$(HDRDIR) -I$(HDRPACKEDDIR) -fPIC
 LDFLAGS=-lX11 -lm
 
 all: $(EXEC)
 
-_DEPS=core.h dbg.h unpack.h screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt kdtree.h img.h packed/check.h sha256.h rc4.h
-_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c screen.c kdtree.c img.c packed/check.c sha256.c rc4.c
+_DEPS=core.h dbg.h unpack.h packed/screen.h packed/ocr.h gen/rc4_consts.txt gen/rc4_keys.txt packed/kdtree.h packed/img.h packed/check.h packed/sha256.h rc4.h
+_SRC=$(EXEC).c dbg.c unpack.c packed/ocr.c dbg_parser.c packed/screen.c packed/kdtree.c packed/img.c packed/check.c packed/sha256.c rc4.c
 _OBJ=$(_SRC:.c=.o)
 DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
@@ -21,11 +22,12 @@ SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 test_obfuscation: CFLAGS += -D TEST_OBFUSCATION # -D DEBUG -D DEBUG_DEBUGGER # -D DEBUG_2PAC -D DEBUG_MAIN -D DEBUG_LOAD
 test_obfuscation: $(OBJ)
 
-debug: CFLAGS += -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK # -D DEBUG_IMG
+debug: CFLAGS += -g -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK # -D DEBUG_IMG
 debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
 release: flag kd_load
+	# strip $(EXEC).2pac
 
 flag:
 	python2 ./script/gen_flag.py >> data/flag.txt

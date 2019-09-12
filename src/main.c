@@ -5,10 +5,10 @@
 #include "core.h"
 #include "dbg.h"
 #ifndef TEST_OBFUSCATION
-#include "screen.h"
 #include "unpack.h"
-#include "packed/ocr.h"
-#include "packed/check.h"
+#include "screen.h"
+#include "ocr.h"
+#include "check.h"
 #endif
 
 /*
@@ -16,6 +16,7 @@
  */
 void child(char *self_path)
 {
+	TUPAC_BEG
 #ifdef TEST_OBFUSCATION
 
 void obfuscation_main();
@@ -58,6 +59,7 @@ void obfuscation_main();
 		fprintf(stdout, "Come on, give me some input to process, man.\n");
 	}
 	FREE(input);
+	TUPAC_END
 	return;
 #endif
 }

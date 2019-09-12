@@ -1,5 +1,5 @@
 
-#include "packed/check.h"
+#include "check.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -90,6 +90,7 @@ img_t *img_alloc(unsigned int h, unsigned int w)
 
 img_t *img_crop(img_t *img, unsigned int h, unsigned int w, unsigned int dh, unsigned int dw, unsigned int *nb_pix)
 {
+	TUPAC_BEG
 	img_t *cropped = img_alloc(dh, dw);
 	*nb_pix = 0;
 	for (unsigned int y = h; y < h + dh; y++) {
@@ -99,6 +100,7 @@ img_t *img_crop(img_t *img, unsigned int h, unsigned int w, unsigned int dh, uns
 			*nb_pix += p?1:0;
 		}
 	}
+	TUPAC_END
 	return cropped;
 }
 
@@ -116,6 +118,7 @@ void img_to_file(img_t *img, char *filepath)
 
 img_t *img_reduce(img_t *img, unsigned int ratio)
 {
+	TUPAC_BEG
 	img_t *new_img = img_alloc(img->h / ratio, img->w / ratio);
 	for (unsigned int dh = 0; dh < new_img->h; dh++) {
 		for (unsigned int dw = 0; dw < new_img->w; dw++) {
@@ -128,11 +131,13 @@ img_t *img_reduce(img_t *img, unsigned int ratio)
 			img_set_pix(new_img, dh, dw, val>=2?255:0);
 		}
 	}
+	TUPAC_END
 	return new_img;
 }
 
 img_t *img_center(img_t *img, unsigned int *min_h, unsigned int *max_h, unsigned int *min_w, unsigned int *max_w)
 {
+	TUPAC_BEG
 	img_t *new_img = (img_t *) malloc(sizeof(img_t));
 	new_img->h = img->h;
 	new_img->w = img->w;
@@ -166,6 +171,7 @@ img_t *img_center(img_t *img, unsigned int *min_h, unsigned int *max_h, unsigned
 		for (unsigned int dw = 0; dw <= *max_w - *min_w; dw++)
 			new_img->pix[hstart + dh][wstart + dw] = img->pix[*min_h + dh][*min_w + dw];
 img_center_end:
+	TUPAC_END
 	return new_img;
 }
 

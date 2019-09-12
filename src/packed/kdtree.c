@@ -9,19 +9,21 @@
 #include <stdlib.h>
 
 #include "img.h"
-#include "packed/ocr.h"
+#include "ocr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define KD_DEPTH 14
 
 int kd_compare(entry_t **e1, entry_t **e2, unsigned int *depth)
 {
+	TUPAC_BEG
 	unsigned int h = (*e1)->img->h;
 	unsigned int x, y;
 	x = *depth/h;
 	y = *depth % h;
 	pix_t p1 = (*e1)->img->pix[x][y];
 	pix_t p2 = (*e2)->img->pix[x][y];
+	TUPAC_END
 	return (p1 < p2)?-1:((p1 == p2)?0:1);
 }
 
@@ -99,6 +101,7 @@ void kd_dump(knode_t *node, FILE *file)
 
 knode_t *kd_load_inode(FILE *file)
 {
+	TUPAC_BEG
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
 	node->type = KD_INODE;
 	node->node.inode.coord[0] = 0;
@@ -116,11 +119,13 @@ knode_t *kd_load_inode(FILE *file)
 #endif
 	node->node.inode.left = NULL;
 	node->node.inode.right = NULL;
+	TUPAC_END
 	return node;
 }
 
 knode_t *kd_load_leaf(FILE *file)
 {
+	TUPAC_BEG
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
 	node->type = KD_LEAF;
 	/* read number of entries */ 
@@ -130,6 +135,7 @@ knode_t *kd_load_leaf(FILE *file)
 	/* read entries */
 	for (unsigned int i = 0; i < node->node.leaf.nb_entries; i++)
 		node->node.leaf.entries[i] = ocr_load_entry(file);
+	TUPAC_END
 	return node;
 }
 
@@ -199,6 +205,7 @@ void kd_search(knode_t *node, img_t *img, entry_t **best, float *best_dist)
 
 FILE *kd_get_fd(char *path)
 {
+	TUPAC_BEG
 	FILE *fd = fopen(path, "r");
 	unsigned int size;
 	/* read size of kd data */
@@ -213,6 +220,7 @@ FILE *kd_get_fd(char *path)
 	fprintf(stderr, "Size: %u (0x%x)\n", size, size);
 #endif
 	fseek(fd, -sizeof(unsigned int) - size, SEEK_END);
+	TUPAC_END
 	return fd;
 }
 

@@ -9,6 +9,7 @@
 
 img_t *screen_convert_to_img(char *data, int width, int height)
 {
+	TUPAC_BEG
 	img_t *img = (img_t *) malloc(sizeof(img_t));
 	img->h = height;
 	img->w = width;
@@ -22,28 +23,30 @@ img_t *screen_convert_to_img(char *data, int width, int height)
 			img_set_pix_rgb(img, dh, dw, *(imgpix + 2), *(imgpix + 1), *(imgpix + 0));
 		}
 	}
+	TUPAC_END
 	return img;
 }
 
 img_t *screen_capture()
 {
+	TUPAC_BEG
+	img_t *img = NULL;
 	Display *display = XOpenDisplay(NULL);
 	if (!display) {
-		return NULL;
+		goto screen_capture_ret;
 	}
 	Window window = DefaultRootWindow(display);
-
 	// Fetch screen size
 	Screen *screen = DefaultScreenOfDisplay(display);
 	int width = screen->width;
 	int height = screen->height;
-
 	// Take a screenshot
 	XImage *image;
 	image = XGetImage (display, window, 0, 0, width, height, AllPlanes, ZPixmap);
-	img_t *img = screen_convert_to_img(image->data, width, height);
+	img = screen_convert_to_img(image->data, width, height);
 	// Free memory
 	XFree (image);
-
+screen_capture_ret:
+	TUPAC_END
 	return img;
 }
