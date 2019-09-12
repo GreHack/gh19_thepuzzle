@@ -52,4 +52,7 @@ void img_dump(img_t *img, FILE *file);
 img_t *img_load(FILE *file);
 #endif
 
+img_t *img_alloc(unsigned int h, unsigned int w);
+void img_free(img_t *img);
+
 #endif

@@ -55,14 +55,35 @@ void img_set_pix_rgb(img_t *img, unsigned int h, unsigned int w, unsigned char r
 	return;
 }
 
+void img_free_first_white_pix(img_t *img)
+{
+	pix_list_t *prev = img->wpix->prev;
+	pix_list_t *nxt = img->wpix->nxt;
+	/* avoid special case when only one entry left */
+	if (nxt != img->wpix) {
+		FREE(img->wpix);
+		img->wpix = nxt;
+		nxt->prev = prev;
+		prev->nxt = nxt;
+	} else {
+		FREE(img->wpix);
+	}
+	img->nb_wpix -= 1;
+	return;
+}
+
 void img_free(img_t *img)
 {
 	for (unsigned int h = 0; h < img->h; h++) {
-		free(img->pix[h]);
+		FREE(img->pix[h]);
 	}
-	free(img->pix);
-	// TODO free linked list of white pixels
-	free(img);
+	FREE(img->pix);
+	while (img->nb_wpix > 1) {
+		img_free_first_white_pix(img);
+	}
+	FREE(img->wpix);
+	FREE(img);
+	return;
 }
 
 pix_t **img_allocate_pixels(unsigned int h, unsigned int w)
@@ -80,11 +101,9 @@ img_t *img_alloc(unsigned int h, unsigned int w)
 	img_t *img = (img_t *) malloc(sizeof(img_t));
 	img->h = h;
 	img->w = w;
-	img->pix = (pix_t **) malloc(h * sizeof(pix_t *));
-	for (unsigned int dh = 0; dh < h; dh++) {
-		img->pix[dh] = (pix_t *) malloc(w * sizeof(pix_t));
-	}
+	img->pix = img_allocate_pixels(h, w);
 	img->wpix = NULL;
+	img->nb_wpix = 0;
 	return img;
 }
 
@@ -138,10 +157,7 @@ img_t *img_reduce(img_t *img, unsigned int ratio)
 img_t *img_center(img_t *img, unsigned int *min_h, unsigned int *max_h, unsigned int *min_w, unsigned int *max_w)
 {
 	TUPAC_BEG
-	img_t *new_img = (img_t *) malloc(sizeof(img_t));
-	new_img->h = img->h;
-	new_img->w = img->w;
-	new_img->pix = img_allocate_pixels(img->h, img->w);
+	img_t *new_img = img_alloc(img->h, img->w);
 	/* init min & max values */
 	*min_h = img->h - 1;
 	*max_h = 0;
@@ -237,14 +253,15 @@ void img_dump(img_t *img, FILE *file)
 
 img_t *img_load(FILE *file)
 {
-	img_t *img = (img_t *) malloc(sizeof(img_t));
-	img->h = 0;
-	img->w = 0;
+	img_t *img;
+	unsigned int h, w;
+	h = 0;
+	w = 0;
 	/* read h and w */
-	FREAD_KD(&(img->h), sizeof(char), 1, file);
-	FREAD_KD(&(img->w), sizeof(char), 1, file);
-	/* allocate pixels */
-	img->pix = img_allocate_pixels(img->h, img->w);
+	FREAD_KD(&h, sizeof(char), 1, file);
+	FREAD_KD(&w, sizeof(char), 1, file);
+	/* allocate image */
+	img = img_alloc(h, w);
 	/* read pixels */
 	for (unsigned int h = 0; h < img->h; h++) {
 		for (unsigned int w = 0; w < img->w; w++) {

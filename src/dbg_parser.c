@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "global.h"
+
 static int g_pid = -31337; // Hack because I don't want to rewrite dbg_die
 
 const char *token_name[END+1] = {
@@ -296,7 +298,7 @@ void dbg_parse_script(char *script) {
 		}
 		dbg_parse_command(line);
 		if (line) {
-			free(line);
+			FREE(line);
 			line = NULL;
 			nb = 0;
 		}

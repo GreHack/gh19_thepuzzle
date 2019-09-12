@@ -36,6 +36,7 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 	}
 	unsigned int h = entries[0]->img->h;
 	knode_t *node = (knode_t *) malloc(sizeof(knode_t));
+	node->entries = NULL;
 	if (depth == KD_DEPTH) {
 		/* Max depth reached - storing the rest in leaf node */		
 		node->type = KD_LEAF;
@@ -56,6 +57,22 @@ knode_t *kd_create(entry_t **entries, unsigned int nb_entries, unsigned int dept
 }
 
 #endif
+
+void kd_free(knode_t *tree, bool free_entries)
+{
+	if (tree->type == KD_INODE) {
+		kd_free(tree->node.inode.left, free_entries);
+		kd_free(tree->node.inode.right, free_entries);
+		ocr_free_entry(tree->node.inode.entry);
+	} else {
+		for (unsigned int i = 0; i < tree->node.leaf.nb_entries; i++)
+			ocr_free_entry(tree->node.leaf.entries[i]);
+		if (free_entries)
+			FREE(tree->node.leaf.entries);
+	}
+	FREE(tree);
+	return;
+}
 
 #ifdef KD_DUMP
 
@@ -157,6 +174,7 @@ knode_t *kd_load(FILE *file)
 	default:
 		EXIT(1, "error reading node type")
 	}
+	kn->entries = NULL;
 	return kn;
 }
 

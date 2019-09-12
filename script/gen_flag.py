@@ -29,7 +29,7 @@ static unsigned char flag_hash[] = {{ {} }};
 #endif
 """.format(flag_len, hash_flag)
 
-open("include/flag.h", "w").write(header)
+open("include/gen/flag.h", "w").write(header)
 
 ### Generate flag image to test challenge
 

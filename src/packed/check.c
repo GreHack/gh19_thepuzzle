@@ -7,7 +7,7 @@
 
 #include "global.h"
 #include "sha256.h"
-#include "flag.h"
+#include "gen/flag.h"
 
 bool check_flag(char *input)
 {
@@ -33,6 +33,7 @@ bool check_flag(char *input)
 		fprintf(stderr, "%02x", 0xff & flag_hash[i]);
 	fprintf(stderr, "\n"); 
 #endif
+	FREE(ctx);
 	bool res = 0 == strncmp((char *) input_hash, (char *) flag_hash, 32);
 	TUPAC_END
 	return res;

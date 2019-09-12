@@ -10,6 +10,7 @@ main.2pac
 .ccls
 .ccls-cache/
 include/gen/*.txt
+include/gen/*.h
 script/*.pyc
 data/
 .gdbinit
