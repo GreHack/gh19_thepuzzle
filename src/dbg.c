@@ -66,6 +66,7 @@ static void bp_node_append(dbg_bp *data) {
 }
 
 static bool bp_node_delete(dbg_bp *data) {
+	// No need to free data after a call to this function
 	dbg_bp_node tmp = { NULL, breakpoints };
 	dbg_bp_node *cur = &tmp;
 	while (cur->next) {
@@ -76,6 +77,8 @@ static bool bp_node_delete(dbg_bp *data) {
 			if (todelete == breakpoints) {
 				breakpoints = cur->next;
 			}
+			FREE(data->uhandler);
+			FREE(data);
 			FREE(todelete);
 			return true;
 		}
@@ -165,7 +168,7 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	bp->handler = (uint64_t) handler;
 	if (uhandler) {
 		// Copy handler name and remove newline
-		bp->uhandler = strdup(uhandler); // TODO Free me
+		bp->uhandler = strdup(uhandler);
 		char *tmp = (char *) bp->uhandler;
 		while (*tmp) {
 			if (*tmp == '\n') {
@@ -188,29 +191,32 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	}
 
 #ifdef DEBUG_DEBUGGER
-	fprintf(stderr, "Added BP at %p (0x%lx) (%06lx, %10s)\n", addr, (uint64_t) addr - g_baddr, (uint64_t) bp->handler, bp->uhandler);
+	fprintf(stderr, "Added BP at %p (0x%lx) (%06lx, %16s)\n", addr, (uint64_t) addr - g_baddr, (uint64_t) bp->handler, bp->uhandler);
 #endif
 }
 
 /*
  * Delete a breakpoint
  */
-void dbg_breakpoint_delete(void *addr)
+void dbg_breakpoint_delete(uint64_t addr)
 {
 	dbg_bp_node *ptr = breakpoints;
 	dbg_bp *bp = NULL;
 	while (ptr && ptr->next) {
 		bp = ptr->data;
-		if (bp->addr == (uint64_t) addr) {
-			if (bp_node_delete(bp)) {
-				FREE(bp);
-			} else {
-				fprintf(stderr, "ERROR: Could not delete breakpoint at %p\n", addr);
+		if (bp->addr == addr) {
+			if (!bp_node_delete(bp)) {
+				fprintf(stderr, "ERROR: Could not delete breakpoint at %lx\n", addr);
 			}
 		}
 		bp = NULL;
 		ptr = ptr->next;
 	}
+}
+
+void dbg_breakpoint_delete_off(uint64_t offset)
+{
+	dbg_breakpoint_delete(g_baddr + offset);
 }
 
 void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
@@ -242,7 +248,10 @@ void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original
 		if (bp->addr >= va && bp->addr < (va + size)) {
 			// Enable the breakpoint
 			if (restore_original) {
-				uint8_t *data = dbg_mem_read(bp->addr - g_baddr, 1);
+				uint8_t *data = dbg_mem_read_va(bp->addr, 1);
+#ifdef DEBUG_DEBUGGER
+				fprintf(stderr, "Overwrote breakpoint original value at 0x%lx (0x%02x -> 0x%02x)\n", bp->addr - g_baddr, bp->orig_data, *data);
+#endif
 				bp->orig_data = *data;
 				FREE(data);
 			}

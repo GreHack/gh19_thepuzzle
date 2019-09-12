@@ -23,7 +23,8 @@ void dbg_attach(int pid);
 
 void dbg_breakpoint_add(void *addr);
 void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler);
-void dbg_breakpoint_delete(void *addr);
+void dbg_breakpoint_delete(uint64_t addr);
+void dbg_breakpoint_delete_off(uint64_t offset);
 void dbg_breakpoint_disable(uint64_t offset, uint64_t size);
 void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original);
 void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data);
