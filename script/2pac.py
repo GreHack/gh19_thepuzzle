@@ -129,7 +129,7 @@ def obfuscate_all(binary):
         # Do obfuscate that function
         sym_name = r2.cmdj('isj. @ {}'.format(func_beg + 2))['name']
         log('Obfuscating "{}" (0x{:x})'.format(sym_name, func_beg))
-        cmds += obfuscate_function(func_beg, func_end)
+        # cmds += obfuscate_function(func_beg, func_end)
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
@@ -195,6 +195,7 @@ def tupac(binary, keyfile):
         ## Pack the function
         data = bytes(data)
         crypt = RC4_crypt(key, data[func_beg:func_end+1])
+
         data = data[:func_beg] + crypt + data[func_end + 1:]
 
         ## Add a call to the unpacking handler for this offset

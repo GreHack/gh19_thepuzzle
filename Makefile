@@ -23,7 +23,7 @@ test_obfuscation: CFLAGS += -D TEST_OBFUSCATION # -D DEBUG -D DEBUG_DEBUGGER # -
 test_obfuscation: $(OBJ)
 
 debug: CFLAGS += -g -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK # -D DEBUG_IMG
-debug: $(EXEC)
+debug: flag $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
 release: flag kd_load
