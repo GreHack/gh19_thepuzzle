@@ -21,6 +21,8 @@ void child(char *self_path)
 
 void obfuscation_main();
 	obfuscation_main();
+	TUPAC_END
+	return;
 
 #else
 

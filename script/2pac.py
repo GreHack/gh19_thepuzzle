@@ -49,9 +49,11 @@ def obfuscate_function(beg, end):
         if opcode[0] in [0x76, 0x77]: # jbe, ja
             # TODO ENABLE ME
             if True:
+                offset += instr['size']
                 continue
             # Do not patch every jump, just do it randomly
             if randint(0, 1):
+                offset += instr['size']
                 continue
 
             ## Patch2: Inverse jumps and patch flags during runtime
@@ -71,6 +73,7 @@ def obfuscate_function(beg, end):
         elif instr['type'] in ['jmp', 'ujmp', 'cjmp']:
             # Do not patch every jump, just do it randomly
             if randint(0, 1):
+                offset += instr['size']
                 continue
 
             ## Patch1: Make jump destination random
