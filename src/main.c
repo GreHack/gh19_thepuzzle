@@ -9,8 +9,8 @@
 #include "screen.h"
 #include "ocr.h"
 #include "check.h"
-#include "b64.h"
 #endif
+#include "b64.h"
 
 /*
  * This is the debuggee, our child process.
@@ -42,6 +42,7 @@ void obfuscation_main();
 	fprintf(stderr, "Load KD complete\n");
 #endif
 #else
+	(void)self_path;
 	ocr_t *ocr = ocr_train("data/ocr/labels.bin", "data/ocr/data.bin");
 	FILE *fd = fopen("data/kd.bin", "w");
 	kd_dump(ocr, fd);
@@ -176,7 +177,7 @@ int main(int argc, char **argv)
 #if DEBUG_MAIN
 			fprintf(stderr, "Hello %d!\n", i);
 #endif
-			usleep(500000);
+			usleep(100);
 		}
 		child(argv[0]);
 	} else {
