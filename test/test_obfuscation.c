@@ -31,6 +31,17 @@ void useless_padding(int a)
 	x *= a;
 }
 
+int recursive_function(int a)
+{
+	//TUPAC_BEG
+	int res = 1;
+	if (!a) {
+		res = recursive_function(a + 1);
+	}
+	//TUPAC_END
+	return res;
+}
+
 int another_function(int total)
 {
 	TUPAC_BEG
@@ -41,7 +52,7 @@ int another_function(int total)
 		val += 1;
 		break;
 	case 1:
-		val += 2;
+		val += recursive_function(0);
 		break;
 	case 2:
 		val += 4;
@@ -50,7 +61,6 @@ int another_function(int total)
 	case 3:
 		val += 1;
 		(void) strcmp("hello", "waht");
-		unsigned char c = 0xeb;
 		break;
 	case 4:
 		val += 3;

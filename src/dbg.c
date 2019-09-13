@@ -21,15 +21,11 @@ typedef struct debug_breakpoint_t {
 	uint8_t orig_data;
 	uint64_t handler; // TODO Maybe use a memory address as well to be consistent with addr
 	const char *uhandler; // User defined function for handling a bp
+	struct debug_breakpoint_t *next;
 } dbg_bp;
 
-typedef struct debug_breakpoint_node_t {
-	dbg_bp *data;
-	struct debug_breakpoint_node_t *next;
-} dbg_bp_node;
-
 /* Our breakpoints list head */
-dbg_bp_node *breakpoints = NULL;
+dbg_bp *breakpoints = NULL;
 
 /* Structures for user specified debugger functions */
 typedef struct dbg_function_line_t {
@@ -45,48 +41,18 @@ typedef struct dbg_function_t {
 /* Our user defined functions list head */
 dbg_function *functions = NULL;
 
-static void bp_node_append(dbg_bp *data) {
-	if (!breakpoints) {
-		breakpoints = malloc(sizeof(dbg_bp_node));
-		if (!breakpoints) {
-			dbg_die("Cannot reserve space for breakpoints");
-		}
-		breakpoints->data = NULL;
-		breakpoints->next = NULL;
-	}
-	dbg_bp_node *end = breakpoints;
-	while (end->next) {
-		end = end->next;
-	}
-	dbg_bp_node *newnode = malloc(sizeof(dbg_bp_node));
-	newnode->data = NULL;
-	newnode->next = NULL;
-	end->data = data;
-	end->next = newnode;
-}
-
-static bool bp_node_delete(dbg_bp *data) {
-	// No need to free data after a call to this function
-	dbg_bp_node tmp = { NULL, breakpoints };
-	dbg_bp_node *cur = &tmp;
+#if 1
+void dbg_breakpoint_debugprint()
+{
+	dbg_bp *cur = breakpoints;
 	while (cur->next) {
-		if (cur->next->data == data) {
-			// Found the one, remove it
-			dbg_bp_node *todelete = cur->next;
-			cur->next = cur->next->next;
-			if (todelete == breakpoints) {
-				breakpoints = cur->next;
-			}
-			FREE(data->uhandler);
-			FREE(data);
-			FREE(todelete);
-			return true;
-		}
+		fprintf(stderr, "{ %p, %p, %p, %p, %p }", cur->addr, cur->handler, cur->orig_data, cur->uhandler, cur->next);
+		fprintf(stderr, " ---> ");
 		cur = cur->next;
 	}
-	return false;
+	fprintf(stderr, "\n");
 }
-
+#endif
 
 /*
  * Fetch our process base address.
@@ -180,7 +146,17 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	} else {
 		bp->uhandler = NULL;
 	}
-	bp_node_append(bp);
+
+	// Now add the breakpoint to the list
+	if (!breakpoints) {
+		breakpoints = bp;
+	} else {
+		dbg_bp *head = breakpoints;
+		while (head->next) {
+			head = head->next;
+		}
+		head->next = bp;
+	}
 
 	// Add a int3 instruction (0xcc *is* the INT3 instruction)
 	trap = (trap & 0xffffffffffffff00) | 0xcc;
@@ -198,69 +174,93 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 /*
  * Delete a breakpoint
  */
-void dbg_breakpoint_delete(uint64_t addr)
+void dbg_breakpoint_delete(uint64_t addr, bool restore)
 {
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr == addr) {
-			if (!bp_node_delete(bp)) {
-				fprintf(stderr, "ERROR: Could not delete breakpoint at %lx\n", addr);
-			}
+	if (!breakpoints) {
+#ifdef DEBUG_DEBUGGER
+		fprintf(stderr, "ERROR: No breakpoints, cannot delete\n");
+#endif
+		return;
+	}
+	dbg_bp tmp = { 0 };
+	tmp.next = breakpoints;
+
+	dbg_bp *head = &tmp;
+	while (head->next->next && head->next->addr != addr) {
+		head = head->next;
+	}
+	if (head->next->next) {
+		dbg_bp *old = head->next;
+		head->next = head->next->next;
+		if (old == breakpoints) {
+			breakpoints = old->next;
 		}
-		bp = NULL;
-		ptr = ptr->next;
+		if (restore) {
+#ifdef DEBUG_DEBUGGER
+			uint8_t *mem = dbg_mem_read_va(old->addr, 1);
+			fprintf(stderr, "Restored original value during bp deletion: %02x -> %02x\n", *mem, old->orig_data);
+			free(mem);
+#endif
+			dbg_mem_write_va(old->addr, 1, (uint8_t*) &old->orig_data);
+		}
+		FREE(old->uhandler);
+		FREE(old);
+	} else {
+#ifdef DEBUG_DEBUGGER
+		fprintf(stderr, "WARNING: Could not find breakpoint\n");
+#endif
 	}
 }
 
-void dbg_breakpoint_delete_off(uint64_t offset)
+void dbg_breakpoint_delete_off(uint64_t offset, bool restore)
 {
-	dbg_breakpoint_delete(g_baddr + offset);
+	dbg_breakpoint_delete(g_baddr + offset, restore);
 }
 
 void dbg_breakpoint_disable(uint64_t offset, uint64_t size)
 {
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
+	dbg_bp *ptr = breakpoints;
 	uint64_t va = g_baddr + offset;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr >= va && bp->addr < (va + size)) {
+	while (ptr) {
+		if (ptr->addr >= va && ptr->addr < (va + size)) {
 			// Disable the breakpoint
-			dbg_mem_write_va(bp->addr, 1, (uint8_t*) &bp->orig_data);
 #ifdef DEBUG_DEBUGGER
-			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
+			uint8_t *mem = dbg_mem_read_va(ptr->addr, 1);
+#endif
+			dbg_mem_write_va(ptr->addr, 1, (uint8_t*) &ptr->orig_data);
+#ifdef DEBUG_DEBUGGER
+			fprintf(stderr, "/!\\ Disabled breakpoint at 0x%016lx (0x%lx) (%02x -> %02x)\n", ptr->addr, ptr->addr - g_baddr, *mem, ptr->orig_data);
+			free(mem);
 #endif
 		}
-		bp = NULL;
 		ptr = ptr->next;
 	}
 }
 
 void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original)
 {
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
+	dbg_bp *ptr = breakpoints;
 	uint64_t va = g_baddr + offset;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr >= va && bp->addr < (va + size)) {
+	while (ptr) {
+		if (ptr->addr >= va && ptr->addr < (va + size)) {
 			// Enable the breakpoint
 			if (restore_original) {
-				uint8_t *data = dbg_mem_read_va(bp->addr, 1);
+				uint8_t *data = dbg_mem_read_va(ptr->addr, 1);
 #ifdef DEBUG_DEBUGGER
-				fprintf(stderr, "Overwrote breakpoint original value at 0x%lx (0x%02x -> 0x%02x)\n", bp->addr - g_baddr, bp->orig_data, *data);
+				fprintf(stderr, "Overwrote breakpoint original value at 0x%lx (0x%02x -> 0x%02x)\n", ptr->addr - g_baddr, ptr->orig_data, *data);
 #endif
-				bp->orig_data = *data;
+				ptr->orig_data = *data;
 				FREE(data);
 			}
-			dbg_mem_write_va(bp->addr, 1, (uint8_t*)"\xcc");
 #ifdef DEBUG_DEBUGGER
-			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx)\n", bp->addr, bp->addr - g_baddr);
+			uint8_t *data = dbg_mem_read_va(ptr->addr, 1);
+#endif
+			dbg_mem_write_va(ptr->addr, 1, (uint8_t*)"\xcc");
+#ifdef DEBUG_DEBUGGER
+			fprintf(stderr, "/!\\ Enabled breakpoint at 0x%016lx (0x%lx) (%02x -> %02x)\n", ptr->addr, ptr->addr - g_baddr, *data, 0xcc);
+			free(data);
 #endif
 		}
-		bp = NULL;
 		ptr = ptr->next;
 	}
 }
@@ -271,59 +271,53 @@ void dbg_breakpoint_enable(uint64_t offset, uint64_t size, bool restore_original
 void dbg_breakpoint_set_original_data(uint64_t offset, uint8_t data)
 {
 
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr == offset + g_baddr) {
-			bp->orig_data = data;
+	dbg_bp *ptr = breakpoints;
+	while (ptr) {
+		if (ptr->addr == offset + g_baddr) {
+			ptr->orig_data = data;
 			break;
 		}
-		bp = NULL;
 		ptr = ptr->next;
 	}
 }
 
 void dbg_break_handle(uint64_t rip)
 {
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		if (bp->addr == rip - 1) {
+	dbg_bp *ptr = breakpoints;
+	while (ptr) {
+		if (ptr->addr == rip - 1) {
 			break;
 		}
-		bp = NULL;
 		ptr = ptr->next;
 	}
-	if (!bp) {
-		printf("WARNING: Expected a breakpoint but there was none heh");
+	if (!ptr) {
+		fprintf(stderr, "WARNING: Expected a breakpoint but there was none heh\n");
 		return;
 	}
 #ifdef DEBUG_DEBUGGER
 	fprintf(stderr, "BreakPoint hit: 0x%016lx (0x%lx)\n", rip - 1, rip - g_baddr - 1);
 #endif
 
-	if (bp->handler) {
+	if (ptr->handler) {
 #ifdef DEBUG_DEBUGGER
-		printf(">>>>>> CALLING HANDLER 0x%lx!\n", bp->handler);
+		fprintf(stderr, ">>>>>> CALLING HANDLER 0x%lx!\n", ptr->handler);
 #endif
-		uint64_t (*handler_func)(uint64_t) = (uint64_t(*)(uint64_t))(g_baddr + bp->handler);
+		uint64_t (*handler_func)(uint64_t) = (uint64_t(*)(uint64_t))(g_baddr + ptr->handler);
 		handler_func(rip - g_baddr - 1);
 	}
-	if (bp->uhandler) {
+	if (ptr->uhandler) {
 #ifdef DEBUG_DEBUGGER
-		printf(">>>>>> CALLING USER HANDLER '%s'!\n", bp->uhandler);
+		fprintf(stderr, ">>>>>> CALLING USER HANDLER '%s'!\n", ptr->uhandler);
 #endif
-		dbg_function_call(bp->uhandler);
+		dbg_function_call(ptr->uhandler);
 	}
 
 #ifdef DEBUG_DEBUGGER
-	printf(">>>>>> Automatic continue after handling breakpoint!\n");
+	fprintf(stderr, ">>>>>> Automatic continue after handling breakpoint!\n");
 #endif
-	// TODO With the fix in dbg_continue, this is probably useless now
 #ifndef TEST
-	dbg_continue(((void*)(bp->handler + g_baddr)) != unpack);
+	// TODO With the fix in dbg_continue, this is probably useless now
+	dbg_continue(((void*)(ptr->handler + g_baddr)) != unpack);
 #else
 	dbg_continue(false);
 #endif
@@ -338,20 +332,17 @@ void dbg_continue(bool restore)
 	struct user_regs_struct regs;
 	ptrace(PTRACE_GETREGS, g_pid, NULL, &regs);
 
-	dbg_bp_node *ptr = breakpoints;
-	dbg_bp *bp = NULL;
-	while (ptr && ptr->next) {
-		bp = ptr->data;
-		// fprintf(stderr, "Looking for bp: RIP, BPADDR: %llx, %lx\n", regs.rip, bp->addr);
-		if (bp->addr == regs.rip - 1) {
+	dbg_bp *ptr = breakpoints;
+	while (ptr) {
+		// fprintf(stderr, "Looking for bp: RIP, BPADDR: %llx, %lx\n", regs.rip, ptr->addr);
+		if (ptr->addr == regs.rip - 1) {
 			break;
 		}
-		bp = NULL;
 		ptr = ptr->next;
 	}
 
 	// We reached one of our breakpoints
-	if (bp) {
+	if (ptr) {
 		// We executed an int3 execution
 		// We have to roll back one byte before
 		regs.rip -= 1;
@@ -359,12 +350,15 @@ void dbg_continue(bool restore)
 			dbg_die("Cannot set new registers value");
 		}
 
-		if (regs.rip != bp->addr) {
+		if (regs.rip != ptr->addr) {
+#ifdef DEBUG_DEBUGGER
+			fprintf(stderr, "What? %llx %lx\n", regs.rip, ptr->addr);
+#endif
 			dbg_die("WHAT THE FUCK IS GOING ON?!");
 		}
 
 		// Replace the breakpoint by its original instruction
-		long orig = ptrace(PTRACE_PEEKTEXT, g_pid, bp->addr, NULL);
+		long orig = ptrace(PTRACE_PEEKTEXT, g_pid, ptr->addr, NULL);
 		if (orig == -1) {
 			dbg_die("Cannot get the original instruction");
 		}
@@ -378,11 +372,11 @@ void dbg_continue(bool restore)
 			restore = true;
 		}
 		if (restore) {
-			long newdata = (orig & 0xffffffffffffff00) | bp->orig_data;
+			long newdata = (orig & 0xffffffffffffff00) | ptr->orig_data;
 #ifdef DEBUG_DEBUGGER
 			fprintf(stderr, " Restoring instruction:   %lx\n", newdata);
 #endif
-			if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, newdata) == -1) {
+			if (ptrace(PTRACE_POKETEXT, g_pid, ptr->addr, newdata) == -1) {
 				dbg_die("Cannot modify the program instruction");
 			}
 		}
@@ -399,7 +393,7 @@ void dbg_continue(bool restore)
 		}
 
 		// Rewrite the breakpoint and continue
-		if (ptrace(PTRACE_POKETEXT, g_pid, bp->addr, orig) == -1) {
+		if (ptrace(PTRACE_POKETEXT, g_pid, ptr->addr, orig) == -1) {
 			dbg_die("Cannot modify the program instruction");
 		}
 

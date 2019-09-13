@@ -47,6 +47,7 @@ int unpack(uint64_t offset)
 	int j = 0;
 	int state = 0;
 	const char *rc4_key;
+	const int FUNC_MAX_SIZE = 0x1000;
 
 	// Check if we want to encrypt or decrypt the function
 	for (int i = 0; i < NFUNC; i++) {
@@ -70,7 +71,7 @@ int unpack(uint64_t offset)
 		}
 
 		if (map_du_pauvre_val[j] >= MAX_UNPACK) {
-			// fprintf(stderr, "Skipping unpacking...\n");
+			fprintf(stderr, "Skipping unpacking... Breakpoints should have been deleted, this message should *never* appear\n");
 			goto end_unpack;
 		} else {
 			map_du_pauvre[j] = offset;
@@ -83,14 +84,23 @@ int unpack(uint64_t offset)
 			}
 		}
 		if (j != NFUNC && map_du_pauvre_val[j] >= MAX_UNPACK) {
-			// fprintf(stderr, "Skipping repacking...\n");
+			// fprintf(stderr, "Skipping repacking and disabling breakpoints...\n");
+			dbg_breakpoint_delete_off(offset, true);
+			dbg_breakpoint_delete_off(already_packed_end[encrypt], true);
+			// Before continuing, since we deleted the breakpoint, continue won't
+			// do the 1 byte substraction to RIP, so let's just do it here manually
+			struct user_regs_struct *regs = dbg_regs_get();
+			regs->rip = regs->rip - 1;
+			dbg_regs_set(regs);
+			free(regs);
 			goto end_unpack;
 		}
 	}
 
 	// Disable breakpoints to work on proper memory
-	dbg_breakpoint_disable(offset, 0x1000);
-	uint8_t *mem = dbg_mem_read(offset, 0x1000);
+	dbg_breakpoint_disable(offset, FUNC_MAX_SIZE);
+	// Read the memory from the beginning of the function
+	uint8_t *mem = dbg_mem_read(offset, FUNC_MAX_SIZE);
 
 	// Get the rc4 key for encryption or decryption
 	if (encrypt == -1) {
@@ -148,7 +158,7 @@ int unpack(uint64_t offset)
 
 	// Write the new program to memory and reenable breakpoints
 	dbg_mem_write(offset, i+1, mem);
-	dbg_breakpoint_enable(offset, 0x1000, true);
+	dbg_breakpoint_enable(offset, FUNC_MAX_SIZE, true);
 
 	// Free the memory
 	rc4_free(rstate);
