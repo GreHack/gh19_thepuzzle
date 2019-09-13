@@ -9,6 +9,7 @@
 #include "screen.h"
 #include "ocr.h"
 #include "check.h"
+#include "b64.h"
 #endif
 
 /*
@@ -83,10 +84,10 @@ void obfuscation_main();
  */
 void father(int child_pid, char *script_path, char *b64_key)
 {
-	int status;
-	struct user_regs_struct *regs;
-	char *key;
-	unsigned int key_len;
+	int status = 0;
+	struct user_regs_struct *regs = NULL;
+	char *key = NULL;
+	unsigned int key_len = 0;
 
 	dbg_attach(child_pid);
 
@@ -95,11 +96,12 @@ void father(int child_pid, char *script_path, char *b64_key)
 
 	if (b64_key) {
 		/* get key from base64-encoded parameter */
-		key = b64_decode(b64_key, strlen(b64_key));
-		key_len = strlen(key);
+		int length = strlen(b64_key);
+		key = b64_decode(b64_key, length);
 #ifdef DEBUG_DEBUGGER
 		fprintf(stderr, "key: %s (len: %u)\n", key, key_len);
 #endif
+		key_len = strlen(key);
 	} else {
 		key = NULL;
 		key_len = 0;
