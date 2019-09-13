@@ -132,6 +132,7 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	bp->addr = (uint64_t) addr;
 	bp->orig_data = trap & 0xff;
 	bp->handler = (uint64_t) handler;
+	bp->next = NULL;
 	if (uhandler) {
 		// Copy handler name and remove newline
 		bp->uhandler = strdup(uhandler);
@@ -611,7 +612,7 @@ void dbg_action_ret()
 	regs->rsp += 8;
 	regs->rip = *((uint64_t *)ptr);
 	dbg_regs_set(regs);
-	free(ptr);
-	free(regs);
+	FREE(ptr);
+	FREE(regs);
 }
 

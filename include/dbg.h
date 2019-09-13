@@ -75,6 +75,6 @@ void dbg_parse_expr(uint64_t *r);
  const char* token_name[END+1];
 #endif
 
-void dbg_parse_script(char *script);
+void dbg_parse_script(char *script, char *key, unsigned int key_len);
 
 #endif

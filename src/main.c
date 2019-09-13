@@ -92,8 +92,9 @@ void father(int child_pid, char *script_path)
 	waitpid(child_pid, &status, 0);
 
 	/* Let's read the debugging file */
-	dbg_parse_script(script_path);		
+	dbg_parse_script(script_path, "aa", 2);		
 
+fprintf(stderr, "OKAYYYY\n");
 	// Main debugger loop
 	while (true) {
 		waitpid(child_pid, &status, 0);
@@ -145,11 +146,11 @@ int main(int argc, char **argv)
 	if (!child_pid) {
 		// TODO Is it funny or just a pity?
 		/* Wait to leave some time to attach */
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < 5; i++) {
 #if DEBUG_MAIN
 			fprintf(stderr, "Hello %d!\n", i);
 #endif
-			usleep(100);
+			usleep(500000);
 		}
 		child(argv[0]);
 	} else {

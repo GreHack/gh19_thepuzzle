@@ -22,7 +22,7 @@ SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 test_obfuscation: CFLAGS += -D TEST_OBFUSCATION -D DEBUG # -D DEBUG_DEBUGGER -D DEBUG_2PAC # -D DEBUG_MAIN -D DEBUG_LOAD
 test_obfuscation: flag $(OBJ)
 
-debug: CFLAGS += -g -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK # -D DEBUG_IMG
+debug: CFLAGS += -g -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK -D DEBUG_DEBUGGER # -D DEBUG_IMG
 debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
@@ -43,6 +43,8 @@ $(EXEC): flag $(OBJ)
 	$(CC) -o $@ $(OBJ) $(CFLAGS) $(LDFLAGS)
 	python3 ./script/2pac.py $(EXEC) ./dbg/2pac.debugging_script ./include/gen/rc4_keys.txt
 	chmod u+x $(EXEC).2pac
+	# Encrypt dbg script
+	python3 ./script/rc4.py "aa" ./dbg/2pac.debugging_script ./dbg/2pac.enc.debugging_script
 
 $(OBJDIR)/$(EXEC).o: $(DEPS)
 

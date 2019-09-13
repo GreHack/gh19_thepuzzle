@@ -1,4 +1,5 @@
 #include "dbg.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -276,19 +277,37 @@ void dbg_parse_command(const char* input)
 	}
 }
 
-void dbg_parse_script(char *script) {
+void dbg_parse_script(char *script, char* key, unsigned int key_len)
+{
 	char *line = NULL;
 	size_t nb = 0;
-	/* Open script file */
+	/* open script file */
 	FILE *script_fd = fopen(script, "r");
 	if (!script_fd) {
 		return;
 	}
-
+	/* get file size */
+	unsigned int script_sz;
+	fseek(script_fd, 0, SEEK_END);
+	script_sz = ftell(script_fd);
+	fseek(script_fd, 0, SEEK_SET);
+	/* read and decrypt script */
+	char *script_content_enc = (char *) malloc(script_sz);
+	fread(script_content_enc, script_sz, 1, script_fd);
+	char *script_content = rc4_crypt(key, key_len, script_content_enc, script_sz);
+	/* free useless structures */
+	fclose(script_fd);
+	FREE(script_content_enc);
+	/* hack to use getline from libc on script content */
+	char tmp_name[32] = "/tmp/XXXXXX";
+	script_fd = fdopen(mkstemp(tmp_name), "r+");
+	fwrite(script_content, script_sz, 1, script_fd);
+	fseek(script_fd, 0, SEEK_SET);
 	const char func_begin[] = "begin ";
 
 	/* Read file content line by line */
 	while (getline(&line, &nb, script_fd) != -1) {
+		fprintf(stderr, "%s", line);
 		if (!strncmp(func_begin, line, sizeof(func_begin) - 1)) {
 			if (dbg_function_register(line, script_fd)) {
 				continue;
@@ -303,6 +322,7 @@ void dbg_parse_script(char *script) {
 			nb = 0;
 		}
 	}
+	FREE(script_content);
 	fclose(script_fd);
 	return;
 }
