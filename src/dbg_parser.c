@@ -269,8 +269,9 @@ void dbg_parse_command(const char* input)
 	}
 	else if (!strncmp(word, "f", len)) {
 		// Argument one is the target flag
-		char flag = ptr[1];
-		dbg_regs_flag_reverse(flag);
+		//char flag = ptr[1];
+		// TODO
+		//dbg_regs_flag_reverse(flag);
 	}
 	else {
 		dbg_die("I don't understand what you say bro");

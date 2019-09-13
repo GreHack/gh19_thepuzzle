@@ -20,7 +20,7 @@ typedef struct debug_breakpoint_t {
 	uint64_t addr; // Must be an actual memory address, not an offset
 	uint8_t orig_data;
 	uint64_t handler; // TODO Maybe use a memory address as well to be consistent with addr
-	const char *uhandler; // User defined function for handling a bp
+	char *uhandler; // User defined function for handling a bp
 	struct debug_breakpoint_t *next;
 } dbg_bp;
 
@@ -46,7 +46,7 @@ void dbg_breakpoint_debugprint()
 {
 	dbg_bp *cur = breakpoints;
 	while (cur->next) {
-		fprintf(stderr, "{ %p, %p, %p, %p, %p }", cur->addr, cur->handler, cur->orig_data, cur->uhandler, cur->next);
+		fprintf(stderr, "{ 0x%lx, 0x%lx, 0x%02x, %p, %p }", cur->addr, cur->handler, cur->orig_data, cur->uhandler, cur->next);
 		fprintf(stderr, " ---> ");
 		cur = cur->next;
 	}
@@ -429,7 +429,7 @@ uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes)
 	void *addr = (void *) g_baddr + offset;
 	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
 		ret = ptrace(PTRACE_PEEKTEXT, g_pid, addr + i, 0);	
-		if (ret == -1) {
+		if (ret == 0xffffffffffffffff) {
 			dbg_die("Reading memory failed!");
 		}
 		buffer[i] = ret & 0xFF;
@@ -513,12 +513,13 @@ void dbg_regs_set(struct user_regs_struct *regs)
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
 }
 
-void dbg_regs_flag_reverse(char flag)
-{
-	struct user_regs_struct* regs = dbg_regs_get();
-	if (flag == 'z') {
-	}
-}
+//void dbg_regs_flag_reverse(char flag)
+//{
+//	//TODO
+//	//struct user_regs_struct* regs = dbg_regs_get();
+//	//if (flag == 'z') {
+//	//}
+//}
 
 bool dbg_function_register(const char* firstline, FILE *fileptr)
 {

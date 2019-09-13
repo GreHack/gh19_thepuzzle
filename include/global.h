@@ -7,7 +7,7 @@
 /* use KD tree for data structure of OCR? */
 #define KD_TREE 1
 
-#define FREE(p) free(p); p = NULL
+#define FREE(p) do { free(p); p = NULL; } while(0)
 
 #ifndef RELEASE
 #define EXIT(code, msg) fprintf(stderr, "[!] %s -- aborting\n", msg); exit(code);

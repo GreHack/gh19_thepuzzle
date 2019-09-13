@@ -43,7 +43,6 @@ int unpack(uint64_t offset)
 {
 	// Default encrypt = -1 means we will decrypt
 	int encrypt = -1;
-	bool doit = true;
 	int j = 0;
 	int state = 0;
 	const char *rc4_key;
