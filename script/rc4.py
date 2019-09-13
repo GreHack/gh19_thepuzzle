@@ -1,5 +1,5 @@
 import sys
-
+from base64 import b64decode
 
 def RC4_key_schedule(key):
     s = list(range(0, 256))
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         print('Usage: {} <key> <in> <out>'.format(sys.argv[0]))
         exit(1)
 
-    key = sys.argv[1].encode()
+    key = b64decode(sys.argv[1].encode())
     f_in = sys.argv[2]
     f_out = sys.argv[3]
 

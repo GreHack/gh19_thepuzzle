@@ -81,20 +81,37 @@ void obfuscation_main();
  * Because of yama hardening, the father *must* be our debugger.
  * Check /proc/sys/kernel/yama/ptrace_scope
  */
-void father(int child_pid, char *script_path)
+void father(int child_pid, char *script_path, char *b64_key)
 {
 	int status;
 	struct user_regs_struct *regs;
+	char *key;
+	unsigned int key_len;
 
 	dbg_attach(child_pid);
 
 	// Wait to catch the first SIGSTOP sent by dbg_attach
 	waitpid(child_pid, &status, 0);
 
-	/* Let's read the debugging file */
-	dbg_parse_script(script_path, "aa", 2);		
+	if (b64_key) {
+		/* get key from base64-encoded parameter */
+		key = b64_decode(b64_key, strlen(b64_key));
+		key_len = strlen(key);
+#ifdef DEBUG_DEBUGGER
+		fprintf(stderr, "key: %s (len: %u)\n", key, key_len);
+#endif
+	} else {
+		key = NULL;
+		key_len = 0;
+	}
 
-fprintf(stderr, "OKAYYYY\n");
+	/* Let's read the debugging file */
+	dbg_parse_script(script_path, key, key_len);
+
+	if (key) {
+		FREE(key);
+	}
+
 	// Main debugger loop
 	while (true) {
 		waitpid(child_pid, &status, 0);
@@ -131,7 +148,7 @@ fprintf(stderr, "OKAYYYY\n");
 int main(int argc, char **argv)
 {
 	if (argc < 2) {
-		fprintf(stderr, "Usage: ./%s /path/to/script.debugging_script -- aborting\n", argv[0]);
+		fprintf(stderr, "Usage: ./%s /path/to/ds/file [key] -- aborting\n", argv[0]);
 		exit(1);
 	}
 
@@ -139,6 +156,12 @@ int main(int argc, char **argv)
 
 	if (strncmp(".debugging_script", argv[1] + (strlen(argv[1]) - 17), 17) != 0) {
 		fprintf(stderr, "Unknown extension for first argument -- aborting\n");
+		exit(1);
+	}
+
+	if (argc >= 3 && strlen(argv[2]) != 4)
+	{
+		fprintf(stderr, "The key must meet our security requirements -- aborting");
 		exit(1);
 	}
 
@@ -157,7 +180,11 @@ int main(int argc, char **argv)
 #if DEBUG_MAIN
 		fprintf(stderr, "Father created: %d, child is: %d\n", father_pid, child_pid);
 #endif
-		father(child_pid, argv[1]);
+		if (argc < 2) {
+			father(child_pid, argv[1], NULL);
+		} else {
+			father(child_pid, argv[1], argv[2]);
+		}
 	}
 
 	return 0;
