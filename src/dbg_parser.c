@@ -49,11 +49,7 @@ static void dbg_parse_reg()
 	att = 0;
 }
 
-#ifdef TEST
 token dbg_token_next()
-#else
-static token dbg_token_next()
-#endif
 {
 	for (;;) {
 		switch (*p) {
