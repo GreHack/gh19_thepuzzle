@@ -513,13 +513,15 @@ void dbg_regs_set(struct user_regs_struct *regs)
 	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
 }
 
-//void dbg_regs_flag_reverse(char flag)
-//{
-//	//TODO
-//	//struct user_regs_struct* regs = dbg_regs_get();
-//	//if (flag == 'z') {
-//	//}
-//}
+void dbg_regs_flag_reverse(char flag)
+{
+	struct user_regs_struct* regs = dbg_regs_get();
+	if (flag == 'z') {
+		regs->eflags = regs->eflags ^ 0x40;
+	}
+	dbg_regs_set(regs);
+	FREE(regs);
+}
 
 bool dbg_function_register(const char* firstline, FILE *fileptr)
 {

@@ -24,7 +24,7 @@ test_parser_bin: ../src/dbg_parser.c test_parser.c ../src/dbg.c
 test_obfuscation_bin: test_obfuscation.c
 	@make -C .. clean $(DBG)
 	@make -C .. test_obfuscation $(DBG)
-	@$(CC) -o $@ test_obfuscation.c ../obj/unpack.o ../obj/dbg.o ../obj/main.o ../obj/rc4.o ../obj/dbg_parser.o $(CFLAGS) $(LDFLAGS) $(DBG)
+	@$(CC) -o $@ test_obfuscation.c ../obj/unpack.o ../obj/dbg.o ../obj/main.o ../obj/rc4.o ../obj/dbg_parser.o ../obj/b64.o $(CFLAGS) $(LDFLAGS) $(DBG)
 
 test_obfuscation_bin.2pac: test_obfuscation_bin ../script/2pac.py
 	@python3 ../script/2pac.py $< $(DBGSCRIPT) ../include/gen/rc4_keys.txt

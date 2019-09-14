@@ -46,12 +46,10 @@ def obfuscate_function(beg, end):
         # Obfuscation is here
         #####################
 
-        if opcode[0] in [0x76, 0x77]: # jbe, ja
-            # TODO ENABLE ME
-            if True:
-                offset += instr['size']
-                continue
-            # Do not patch every jump, just do it randomly
+        # TODO Handle jge, jl sf = of ; sf != of
+        # TODO Handle jle, jg zf = 1 OR sf != of ; zf = 0 ^ sf = of
+        # TODO Handle [0x76, 0x77]: # jbe, ja
+        if opcode[0] in [0x74, 0x75]: # je, jne
             if randint(0, 1):
                 offset += instr['size']
                 continue
@@ -59,16 +57,15 @@ def obfuscate_function(beg, end):
             ## Patch2: Inverse jumps and patch flags during runtime
             log('Patch2 at 0x{:x}'.format(offset))
 
-            # jbe: cf = 1 or zf = 1
-            # ja:  cf = 0 and zf = 0
             new_opcode = bytes([opcode[0] ^ 1, opcode[1]])
             fname = next(gen_func_name())
-            cmds.append('begin {}\nf z\nf c\nend'.format(fname))
+            cmds.append('begin {}\nf z\nend'.format(fname))
+            cmds.append('bh {} {}'.format(offset, fname))
 
             # Patch the binary
-            r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
             assert(len(new_opcode) == len(opcode))
             assert(new_opcode != opcode)
+            r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
 
         elif instr['type'] in ['jmp', 'ujmp', 'cjmp']:
             # Do not patch every jump, just do it randomly
@@ -112,15 +109,15 @@ def obfuscate_function(beg, end):
     return cmds
 
 
-def obfuscate_all(binary):
+def obfuscate_all(source, output):
     # Do a safe copy of the binary and open r2 in write mode
-    with open(binary, 'rb') as f:
+    with open(source, 'rb') as f:
         data = f.read()
-    with open(binary + '.unpacked', 'wb') as f:
+    with open(output, 'wb') as f:
         f.write(data)
     # Open the file in write mode with r2
     global r2
-    r2 = r2pipe.open(binary + '.unpacked', ['-w'], radare2home=R2_PATH)
+    r2 = r2pipe.open(output, ['-w'], radare2home=R2_PATH)
 
     cmds = []
     bookmark = data.find(TUPAC_BEG_MARKER)
@@ -132,7 +129,7 @@ def obfuscate_all(binary):
         # Do obfuscate that function
         sym_name = r2.cmdj('isj. @ {}'.format(func_beg + 2))['name']
         log('Obfuscating "{}" (0x{:x})'.format(sym_name, func_beg))
-        # cmds += obfuscate_function(func_beg, func_end)
+        cmds += obfuscate_function(func_beg, func_end)
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
@@ -155,10 +152,10 @@ def import_keys(fpath):
     return keys
 
 
-def tupac(binary, keyfile):
+def tupac(binary, keyfile, filename):
     # Initialize r2 for reading
     global r2
-    r2 = r2pipe.open(binary + '.unpacked', radare2home=R2_PATH)
+    r2 = r2pipe.open(binary, radare2home=R2_PATH)
     seed(0) # TODO Remove this for more randomness
 
     with open(binary, 'rb') as f:
@@ -210,7 +207,7 @@ def tupac(binary, keyfile):
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
 
     # Write the modified binary
-    with open(binary + '.2pac', 'wb') as f:
+    with open(filename, 'wb') as f:
         f.write(data)
 
     r2.quit()
@@ -228,12 +225,13 @@ def main(argv: list):
         print('Usage: {} <input_binary> <output_script> <input_keys>'.format(argv[0]))
         sys.exit(1)
     input_binary, output_script, input_keys = argv[1], argv[2], argv[3]
+    patched_binary = input_binary + '.unpacked'
 
     # Start the obfuscation
-    cmds = obfuscate_all(input_binary)
+    cmds = obfuscate_all(input_binary, patched_binary)
 
     # Save current binary and do the packing
-    cmds += tupac(input_binary, input_keys)
+    cmds += tupac(patched_binary, input_keys, input_binary + '.2pac')
 
     # Write debugging script
     with open(output_script, 'w') as f:

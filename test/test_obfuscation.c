@@ -11,15 +11,30 @@
 int try_me(int n)
 {
 	TUPAC_BEG
-	int val = 0;
+	unsigned int val = 0;
 	val = val + 10;
 	val = val - 10;
+	if (val == 0xdeadbeef) {
+		val += 0x1000;
+	}
 	if (n < -10) {
 		val++;
 	} else if (n < -100) {
 		val += 100;
 	} else if (n > 123123123) {
 		val -= 1000000;
+	}
+	if (val == 0xdeadc0de) {
+		val += 0x100;
+	}
+	if (val == 0xc0febabe) {
+		val += 0x100;
+	}
+	if (val == 0x00031337) {
+		val += 0x1337;
+	}
+	if (val == 0x31337000) {
+		val += 0x1337;
 	}
 	TUPAC_END
 	return val;
