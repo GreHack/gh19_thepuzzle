@@ -33,7 +33,6 @@ def obfuscate_function(beg, end):
     offset = beg
     cmds = []
     repatch = []
-    seed(0) # TODO Remove this for more randomness
     while (offset < end):
         instr = r2.cmdj('pdj 1 @ {}'.format(offset))[0]
         # print(hex(instr['offset']), instr['disasm'], instr['bytes'], instr['size'])
@@ -49,7 +48,7 @@ def obfuscate_function(beg, end):
         # TODO Handle jge, jl sf = of ; sf != of
         # TODO Handle jle, jg zf = 1 OR sf != of ; zf = 0 ^ sf = of
         # TODO Handle [0x76, 0x77]: # jbe, ja
-        if opcode[0] in [0x74, 0x75]: # je, jne
+        if instr['type'] in ['jmp', 'ujmp', 'cjmp'] and opcode[0] in [0x74, 0x75]: # je, jne
             if randint(0, 1):
                 offset += instr['size']
                 continue
@@ -63,18 +62,18 @@ def obfuscate_function(beg, end):
             cmds.append('bh {} {}'.format(offset, fname))
 
             # Patch the binary
-            assert(len(new_opcode) == len(opcode))
-            assert(new_opcode != opcode)
+            assert len(new_opcode) == len(opcode)
+            assert new_opcode != opcode
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
 
-        elif instr['type'] in ['jmp', 'ujmp', 'cjmp']:
+        elif instr['type'] in ['jmp', 'ujmp', 'cjmp'] and instr['size'] == 2:
             # Do not patch every jump, just do it randomly
-            if randint(0, 1):
+            if randint(0, 10) != 0:
                 offset += instr['size']
                 continue
 
             ## Patch1: Make jump destination random
-            log('Patch1 at 0x{:x}'.format(offset))
+            log('Patch1 at 0x{:x}: "{}" ({})'.format(offset, instr['disasm'], instr['bytes']))
 
             n = instr['size'] - 1
             destination = [randint(0, 255) for _ in range(n)]
@@ -85,7 +84,8 @@ def obfuscate_function(beg, end):
             fname = next(gen_func_name())
             cmds.append('begin {}\nw {} {}\nend'.format(fname, offset + 1, original))
             cmds.append('bh {} {}'.format(offset, fname))
-            assert len(new_opcode) == len(opcode), b'New: ' + new_opcode + b' ' + opcode
+            assert opcode != new_opcode
+            assert len(new_opcode) == len(opcode)
 
             # Add calls to repatch bad bytes at the end of the function
             # To avoid people from just dumping the binary
@@ -156,7 +156,6 @@ def tupac(binary, keyfile, filename):
     # Initialize r2 for reading
     global r2
     r2 = r2pipe.open(binary, radare2home=R2_PATH)
-    seed(0) # TODO Remove this for more randomness
 
     with open(binary, 'rb') as f:
         data = f.read()

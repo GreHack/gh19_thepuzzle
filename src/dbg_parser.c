@@ -301,7 +301,6 @@ void dbg_parse_script(char *script, char* key, unsigned int key_len)
 		fwrite(script_content, script_sz, 1, script_fd);
 		fseek(script_fd, 0, SEEK_SET);
 		FREE(script_content);
-		fprintf(stderr, "OKKKKKK\n");
 	}
 
 	const char func_begin[] = "begin ";
