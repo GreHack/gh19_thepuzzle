@@ -14,6 +14,7 @@ TUPAC_END_MARKER = b'LetTheLegendResurrect'
 
 R2_PATH = None # getenv('HOME') + '/.local/bin'
 r2 = None
+IS_TEST = False
 
 
 def log(msg):
@@ -49,7 +50,7 @@ def obfuscate_function(beg, end):
         # TODO Handle jle, jg zf = 1 OR sf != of ; zf = 0 ^ sf = of
         # TODO Handle [0x76, 0x77]: # jbe, ja
         if instr['type'] in ['jmp', 'ujmp', 'cjmp'] and opcode[0] in [0x74, 0x75]: # je, jne
-            if randint(0, 1):
+            if not IS_TEST and randint(0, 10) != 0:
                 offset += instr['size']
                 continue
 
@@ -68,7 +69,7 @@ def obfuscate_function(beg, end):
 
         elif instr['type'] in ['jmp', 'ujmp', 'cjmp'] and instr['size'] == 2:
             # Do not patch every jump, just do it randomly
-            if randint(0, 10) != 0:
+            if not IS_TEST and randint(0, 10) != 0:
                 offset += instr['size']
                 continue
 
@@ -220,9 +221,14 @@ def main(argv: list):
     input_keys = ''
 
     # Read program arguments
-    if len(argv) != 4:
+    if len(argv) < 4:
         print('Usage: {} <input_binary> <output_script> <input_keys>'.format(argv[0]))
         sys.exit(1)
+    if len(argv) == 5:
+        if argv[4] == 'TEST':
+            global IS_TEST
+            IS_TEST = True
+            log('Enabled in test mode')
     input_binary, output_script, input_keys = argv[1], argv[2], argv[3]
     patched_binary = input_binary + '.unpacked'
 
