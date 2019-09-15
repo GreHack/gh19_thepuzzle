@@ -27,13 +27,15 @@ debug: $(EXEC)
 
 release: CFLAGS += -D RELEASE -D KD_LOAD
 release: flag kd_load
-	# strip $(EXEC).2pac
 
 flag:
 	python2 ./script/gen_flag.py >> data/flag.txt
 
+stripped_exec: $(EXEC)
+	strip $(EXEC).2pac
+
 kd_load: CFLAGS += -D KD_LOAD
-kd_load: $(EXEC)
+kd_load: stripped_exec
 	python3 script/rc4.py $$(echo -n "This program cannot be run in DOS mode" | base64) data/kd.bin data/kd.enc
 	cat data/kd.enc >> $(EXEC).2pac
 	python2 -c "import struct; print(struct.pack('<I', $$(wc -c < data/kd.bin)))" | head -c -1 >> $(EXEC).2pac
