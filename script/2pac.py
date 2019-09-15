@@ -30,6 +30,25 @@ def gen_func_name(alt=''):
         yield ''.join([choice(ascii_letters) for _ in range(6)]) + alt
 
 
+def split_integer(num):
+    """ Split an integer into additions, just to bother people """
+    assert type(num) == int
+
+    nb_ops = randint(2, 6)
+    ops = [choice('-+-+*') for _ in range(nb_ops)]
+    nbs = [randint(0, num//(nb_ops + 1)) for _ in range(nb_ops + 1)]
+    res = ''.join([str(nbs[i]) + ops[i] for i in range(nb_ops)]) + str(nbs[nb_ops])
+    cmp = str(num - eval(res))
+    if cmp[0] == '-':
+        res += cmp
+    else:
+        res += '+' + cmp
+    cmp = eval(res)
+    assert cmp == num
+    return res
+
+
+
 def obfuscate_function(beg, end):
     offset = beg
     cmds = []
@@ -60,7 +79,7 @@ def obfuscate_function(beg, end):
             new_opcode = bytes([opcode[0] ^ 1, opcode[1]])
             fname = next(gen_func_name())
             cmds.append('begin {}\nf z\nend'.format(fname))
-            cmds.append('bh {} {}'.format(offset, fname))
+            cmds.append('bh {} {}'.format(split_integer(offset), fname))
 
             # Patch the binary
             assert len(new_opcode) == len(opcode)
@@ -83,8 +102,8 @@ def obfuscate_function(beg, end):
 
             # Add calls to patch the bytes
             fname = next(gen_func_name())
-            cmds.append('begin {}\nw {} {}\nend'.format(fname, offset + 1, original))
-            cmds.append('bh {} {}'.format(offset, fname))
+            cmds.append('begin {}\nw {} {}\nend'.format(fname, split_integer(offset + 1), split_integer(original)))
+            cmds.append('bh {} {}'.format(split_integer(offset), fname))
             assert opcode != new_opcode
             assert len(new_opcode) == len(opcode)
 
@@ -104,9 +123,9 @@ def obfuscate_function(beg, end):
         fcname = next(gen_func_name())
         cmds.append('begin {}'.format(fcname))
         for patch in repatch:
-            cmds.append('w {} {}'.format(patch[0], patch[1]))
+            cmds.append('w {} {}'.format(split_integer(patch[0]), split_integer(patch[1])))
         cmds.append('end')
-        cmds.append('bh {} {}'.format(end, fcname))
+        cmds.append('bh {} {}'.format(split_integer(end), fcname))
     return cmds
 
 
@@ -199,9 +218,9 @@ def tupac(binary, keyfile, filename):
         data = data[:func_beg] + crypt + data[func_end + 1:]
 
         ## Add a call to the unpacking handler for this offset
-        commands.append('b {} {}'.format(func_beg, unpacker_addr))
+        commands.append('b {} {}'.format(split_integer(func_beg), split_integer(unpacker_addr)))
         ## Add a call to repack the function at the end
-        commands.append('b {} {}'.format(func_end, unpacker_addr, func_beg))
+        commands.append('b {} {}'.format(split_integer(func_end), split_integer(unpacker_addr)))
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
@@ -219,6 +238,7 @@ def main(argv: list):
     input_binary = ''
     output_script = ''
     input_keys = ''
+    split_integer(1234)
 
     # Read program arguments
     if len(argv) < 4:
