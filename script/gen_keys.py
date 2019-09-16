@@ -15,4 +15,3 @@ with open("include/gen/rc4_keys.txt", "w") as f:
 		if i < NKEY - 1:
 			f.write(",")
 		f.write("\n")
-	f.write("\"AYO\"\n")

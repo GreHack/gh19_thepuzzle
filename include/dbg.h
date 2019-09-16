@@ -9,13 +9,16 @@
 #include <signal.h>
 #include <stdint.h>
 
-
+#ifdef DEBUG_DEBUGGER
 #define dbg_die(x) { \
 	printf("==== FATAL: DBG DEAD -- %s - %s:%d\n", x, __FILE__, __LINE__); \
 	perror("Reason:"); \
 	kill(g_pid, SIGKILL); \
 	exit(-1); \
 	}
+#else
+#define dbg_die(x) { kill(g_pid, SIGKILL); exit(-1); }
+#endif
 
 
 /* dbg.c */

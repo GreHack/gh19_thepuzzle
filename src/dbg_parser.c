@@ -87,8 +87,10 @@ token dbg_token_next()
 static void parse_token(token expected)
 {
 	if (CURRENT_TOKEN != expected) {
+#ifdef DEBUG_DEBUGGER_PARSER
 		fprintf(stderr, "Expected %s but found %s ...\n",
 				token_name[expected], token_name[CURRENT_TOKEN]);
+#endif
 		dbg_die("Unexpected token!");
 	}
 	if (CURRENT_TOKEN != END) {
@@ -126,7 +128,9 @@ static void dbg_parse_expr0(uint64_t *r)
 		*r = 0;
 		break;
 	default:
+#ifdef DEBUG_DEBUGGER_PARSER
 		fprintf(stderr, "Got invalid token for tokexpr: %s\n", token_name[CURRENT_TOKEN]);
+#endif
 		dbg_die("Invalid token for tokexpr");
 	}
 }

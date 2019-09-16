@@ -41,7 +41,7 @@ typedef struct dbg_function_t {
 /* Our user defined functions list head */
 dbg_function *functions = NULL;
 
-#if 1
+#ifdef DEBUG_DEBUGGER
 void dbg_breakpoint_debugprint()
 {
 	dbg_bp *cur = breakpoints;
@@ -292,7 +292,9 @@ void dbg_break_handle(uint64_t rip)
 		ptr = ptr->next;
 	}
 	if (!ptr) {
+#ifdef DEBUG_DEBUGGER
 		fprintf(stderr, "WARNING: Expected a breakpoint but there was none heh\n");
+#endif
 		return;
 	}
 #ifdef DEBUG_DEBUGGER
@@ -389,7 +391,9 @@ void dbg_continue(bool restore)
 		int status;
 		waitpid(g_pid, &status, 0);
 		if (!WIFSTOPPED(status) || WSTOPSIG(status) != SIGTRAP) {
+#ifdef DEBUG_DEBUGGER
 			fprintf(stderr, "Unexpected signal received: %s\n", strsignal(WSTOPSIG(status)));
+#endif
 			dbg_die("WHAT THE FUCK WHY JOHN WHYYYYYYYY");
 		}
 
