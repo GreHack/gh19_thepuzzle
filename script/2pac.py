@@ -5,7 +5,7 @@ import sys
 import re
 import r2pipe
 from rc4 import RC4_crypt
-from random import randint, choice, seed
+from random import randint, choice, seed, shuffle
 from string import ascii_letters
 from os import getenv
 
@@ -121,10 +121,12 @@ def obfuscate_function(beg, end):
     # that will repatch everything done
     if repatch:
         fcname = next(gen_func_name())
-        cmds.append('begin {}'.format(fcname))
+        cmd = ''
+        cmd += 'begin {}'.format(fcname)
         for patch in repatch:
-            cmds.append('w {} {}'.format(split_integer(patch[0]), split_integer(patch[1])))
-        cmds.append('end')
+            cmd += '\nw {} {}'.format(split_integer(patch[0]), split_integer(patch[1]))
+        cmd += '\nend'
+        cmds.append(cmd)
         cmds.append('bh {} {}'.format(split_integer(end), fcname))
     return cmds
 
@@ -238,7 +240,6 @@ def main(argv: list):
     input_binary = ''
     output_script = ''
     input_keys = ''
-    split_integer(1234)
 
     # Read program arguments
     if len(argv) < 4:
@@ -257,6 +258,8 @@ def main(argv: list):
 
     # Save current binary and do the packing
     cmds += tupac(patched_binary, input_keys, input_binary + '.2pac')
+    # Shuffle it so it's harder to understand the script
+    shuffle(cmds)
 
     # Write debugging script
     with open(output_script, 'w') as f:
