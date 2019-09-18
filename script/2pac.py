@@ -17,6 +17,8 @@ R2_PATH = None # getenv('HOME') + '/.local/bin'
 r2 = None
 IS_TEST = False
 
+DO_NOT_OBFUSCATE = ['kd_compare']
+
 
 def log(msg):
     print('[2PAC]', msg)
@@ -192,8 +194,11 @@ def obfuscate_all(source, output):
 
         # Do obfuscate that function
         sym_name = r2.cmdj('isj. @ {}'.format(func_beg + 2))['name']
-        log('Obfuscating "{}" (0x{:x})'.format(sym_name, func_beg))
-        cmds += obfuscate_function(func_beg, func_end)
+        if sym_name not in DO_NOT_OBFUSCATE:
+            log('Obfuscating "{}" (0x{:x})'.format(sym_name, func_beg))
+            cmds += obfuscate_function(func_beg, func_end)
+        else:
+            log('Skipping obfuscation for {}'.format(sym_name))
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
