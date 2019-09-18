@@ -32,7 +32,8 @@ def test_obfuscation():
     # Now check the output
     try:
         res = proc.stdout.readline().decode()
-        if res and int(res) == 3341:
+        # if res and int(res) == 3341:
+        if res and int(res) == 147069:
             logok(t)
         else:
             logfail(t)

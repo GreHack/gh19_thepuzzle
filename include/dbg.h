@@ -45,6 +45,8 @@ void dbg_mem_show(int offset, int len);
 struct user_regs_struct *dbg_regs_get(void);
 void dbg_regs_set(struct user_regs_struct *regs);
 void dbg_regs_flag_reverse(char flag);
+uint64_t dbg_regs_get_val(const char *reg);
+void dbg_regs_set_val(const char *reg, uint64_t newval);
 
 bool dbg_function_register(const char* firstline, FILE *fileptr);
 void dbg_function_call(const char *uhandler);

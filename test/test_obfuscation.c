@@ -91,8 +91,12 @@ int do_test()
 	int total = 0;
 	for (int i = 0; i < 1337; i++) {
 		total += another_function(total);
-		char *fu = malloc(100);
-		fu[0] = 1;
+		char *fu = malloc(30);
+		if (fu) {
+			strcpy(fu, "Well I just want to try this!");
+			fu[29] = 0;
+			total += fu[3];
+		}
 		free(fu);
 	}
 	TUPAC_END

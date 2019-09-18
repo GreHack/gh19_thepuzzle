@@ -8,6 +8,7 @@ from rc4 import RC4_crypt
 from random import randint, choice, seed, shuffle
 from string import ascii_letters
 from os import getenv
+from struct import pack
 
 TUPAC_BEG_MARKER = b'GiveUs2PacBack'
 TUPAC_END_MARKER = b'LetTheLegendResurrect'
@@ -110,6 +111,47 @@ def obfuscate_function(beg, end):
             # Add calls to repatch bad bytes at the end of the function
             # To avoid people from just dumping the binary
             repatch.append((offset + 1, randint(0, 255)))
+
+            # Patch the binary
+            r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
+        elif instr['type'] == 'mov' and 'val' in instr:
+            ops = r2.cmdj('aoj @ {}'.format(offset))[0]['opex']['operands']
+            if ops[0]['type'] != 'reg':
+                offset += instr['size']
+                continue
+            if not IS_TEST and randint(0, 10) != 0:
+                offset += instr['size']
+                continue
+
+            ## Patch3: Change mov immediate to something random and fix it on the fly
+            log('Patch3 at 0x{:x}: "{}" ({})'.format(offset, instr['disasm'], instr['bytes']))
+
+            # Add calls to fix the reg value on the fly
+            fname = next(gen_func_name())
+            reg = ops[0]['value']
+            assert ops[1]['type'] == 'imm'
+            reg_val = ops[1]['value']
+
+            if instr['size'] == 5:
+                new_val = randint(0, 2**32)
+                op_end = pack('<I', new_val)
+            elif instr['size'] == 10:
+                new_val = randint(0, 2**64)
+                op_end = pack('<Q', new_val)
+            else:
+                print('Error: Unexpected size: {}!'.format(instr['size']))
+            diff = reg_val - new_val
+
+            if 'movabs' in instr['disasm']:
+                op_beg = [opcode[0], opcode[1]]
+            else:
+                op_beg = [opcode[0]]
+            new_opcode = bytes(op_beg) + op_end
+            assert opcode != new_opcode
+            assert len(opcode) == len(new_opcode)
+
+            cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, diff))
+            cmds.append('bh {} {}'.format(split_integer(offset + instr['size']), fname))
 
             # Patch the binary
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))

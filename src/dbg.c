@@ -527,6 +527,73 @@ void dbg_regs_flag_reverse(char flag)
 	FREE(regs);
 }
 
+uint64_t dbg_regs_get_val(const char *reg)
+{
+	struct user_regs_struct *regs = dbg_regs_get();
+	uint64_t val = 0;
+	if (!strcmp(reg, "eax")) {
+		val = regs->rax & 0xffffffff;
+	} else if (!strcmp(reg, "ebx")) {
+		val = regs->rbx & 0xffffffff;
+	} else if (!strcmp(reg, "ecx")) {
+		val = regs->rcx & 0xffffffff;
+	} else if (!strcmp(reg, "edx")) {
+		val = regs->rdx & 0xffffffff;
+	} else if (!strcmp(reg, "edi")) {
+		val = regs->rdi & 0xffffffff;
+	} else if (!strcmp(reg, "esi")) {
+		val = regs->rsi & 0xffffffff;
+	} else if (!strcmp(reg, "ebp")) {
+		val = regs->rbp & 0xffffffff;
+	} else if (!strcmp(reg, "esp")) {
+		val = regs->rsp & 0xffffffff;
+
+	} else if (!strcmp(reg, "rax")) {
+		val = regs->rax;
+	} else if (!strcmp(reg, "rbx")) {
+		val = regs->rbx;
+	} else if (!strcmp(reg, "rcx")) {
+		val = regs->rcx;
+	} else if (!strcmp(reg, "rdx")) {
+		val = regs->rdx;
+	} else if (!strcmp(reg, "rdi")) {
+		val = regs->rdi;
+	} else if (!strcmp(reg, "rsi")) {
+		val = regs->rsi;
+	} else if (!strcmp(reg, "rbp")) {
+		val = regs->rbp;
+	} else if (!strcmp(reg, "rsp")) {
+		val = regs->rsp;
+	}
+	FREE(regs);
+
+	return val;
+}
+
+void dbg_regs_set_val(const char *reg, uint64_t newval)
+{
+	struct user_regs_struct *regs = dbg_regs_get();
+	if (!strcmp(reg, "eax") || !strcmp(reg, "rax")) {
+		regs->rax = newval;
+	} else if (!strcmp(reg, "ebx") || !strcmp(reg, "rbx")) {
+		regs->rbx = newval;
+	} else if (!strcmp(reg, "ecx") || !strcmp(reg, "rcx")) {
+		regs->rcx = newval;
+	} else if (!strcmp(reg, "edx") || !strcmp(reg, "rdx")) {
+		regs->rdx = newval;
+	} else if (!strcmp(reg, "edi") || !strcmp(reg, "rdi")) {
+		regs->rdi = newval;
+	} else if (!strcmp(reg, "ebp") || !strcmp(reg, "rbp")) {
+		regs->rbp = newval;
+	} else if (!strcmp(reg, "esi") || !strcmp(reg, "rsi")) {
+		regs->rsi = newval;
+	} else if (!strcmp(reg, "esp") || !strcmp(reg, "rsp")) {
+		regs->rsp = newval;
+	}
+	dbg_regs_set(regs);
+	FREE(regs);
+}
+
 bool dbg_function_register(const char* firstline, FILE *fileptr)
 {
 	dbg_function *func = calloc(1, sizeof(dbg_function));

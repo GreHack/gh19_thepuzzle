@@ -7,6 +7,7 @@
 #include "global.h"
 
 static int g_pid = -31337; // Hack because I don't want to rewrite dbg_die
+static char last_reg[8] = { 0 };
 
 const char *token_name[END+1] = {
 	"INT",
@@ -41,12 +42,15 @@ static void dbg_parse_int()
 
 static void dbg_parse_reg()
 {
-	while (!is_space(*p) && *p != '\0') {
+	int i = 0;
+	while (!is_space(*p) && *p != '\0' && i < sizeof(last_reg)) {
+		last_reg[i] = *p;
 		++p;
+		i++;
 	}
+	last_reg[i] = '\0';
 
-	// TODO Make sure the register is valid and get its value
-	att = 0;
+	att = dbg_regs_get_val(last_reg);
 }
 
 token dbg_token_next()
@@ -271,6 +275,16 @@ void dbg_parse_command(const char* input)
 		// Argument one is the target flag
 		char flag = ptr[1];
 		dbg_regs_flag_reverse(flag);
+	}
+	else if (!strncmp(word, "a", len)) {
+		// Add a value to a register
+		uint64_t reg_val = 0;
+		uint64_t val_to_add = 0;
+		dbg_parse_expr(&reg_val);
+		dbg_parse_expr(&val_to_add);
+		dbg_regs_set_val(last_reg, reg_val + val_to_add);
+		//fprintf(stderr, "Val to add: %lx\n", val_to_add);
+		memset(last_reg, 0, sizeof(last_reg));
 	}
 	else {
 		dbg_die("I don't understand what you say bro");
