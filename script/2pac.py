@@ -17,7 +17,7 @@ R2_PATH = None # getenv('HOME') + '/.local/bin'
 r2 = None
 IS_TEST = False
 
-DO_NOT_OBFUSCATE = ['kd_compare']
+DO_NOT_OBFUSCATE = [] # ['kd_compare']
 
 
 def log(msg):
@@ -56,7 +56,7 @@ def split_integer(num):
 def patchit():
     if IS_TEST:
         return True
-    return randint(0, 20) != 0
+    return randint(0, 5) == 0
 
 
 
@@ -172,7 +172,8 @@ def obfuscate_function(beg, end):
             death_func_name = next(gen_func_name())
             cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, diff))
             original_opcode = int.from_bytes(opcode, byteorder='little')
-            cmds.append('begin {}\nw {} {}\na $rip -{}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
+            # cmds.append('begin {}\nw {} {}\na $rip 0-{}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
+            cmds.append('begin {}\nw {} {}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
             cmds.append('bh {} {} {}'.format(split_integer(offset + instr['size']), fname, death_func_name))
 
             # Patch the binary

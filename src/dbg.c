@@ -43,6 +43,8 @@ typedef struct dbg_function_t {
 /* Our user defined functions list head */
 dbg_function *functions = NULL;
 
+const int MAX_BP_CALL = 20;
+
 #ifdef DEBUG_DEBUGGER
 void dbg_breakpoint_debugprint()
 {
@@ -169,7 +171,7 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler,
 	}
 
 	if (bp->uhandler || bp->dhandler) {
-		bp->calls = 20;
+		bp->calls = MAX_BP_CALL;
 	}
 
 	// Now add the breakpoint to the list

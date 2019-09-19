@@ -293,7 +293,9 @@ void dbg_parse_command(const char* input)
 		uint64_t val_to_add = 0;
 		dbg_parse_expr(&reg_val);
 		dbg_parse_expr(&val_to_add);
-		// fprintf(stderr, "Val to add: %lx (new val: %lx)\n", val_to_add, reg_val + val_to_add);
+#ifdef DEBUG_DEBUGGER
+		fprintf(stderr, "Val to add: %lx + %lx (new val: %lx)\n", reg_val, val_to_add, reg_val + val_to_add);
+#endif
 		dbg_regs_set_val(last_reg, reg_val + val_to_add);
 		memset(last_reg, 0, sizeof(last_reg));
 	}
