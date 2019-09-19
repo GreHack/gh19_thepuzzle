@@ -131,7 +131,7 @@ int unpack(uint64_t offset)
 		if (encrypt == -1) {
 			if (((mem[i] & 0xFF) == 0x90) && (i > 2) && ((mem[i - 1] & 0xFF) == 0x90) && ((mem[i - 2] & 0xFF) != 0x90)) {
 				state = state + 1;
-			} else if (state == 2 && (mem[i] & 0xFF) == 0xc3) {
+			} else if (state == 1 && (mem[i] & 0xFF) == 0xc3) {
 				break;
 			}
 		} else {

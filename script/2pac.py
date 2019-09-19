@@ -234,7 +234,6 @@ def obfuscate_all(source, output):
     r2.quit()
     return cmds
 
-
 def import_keys(fpath):
     keys = []
     with open(fpath, 'rb') as f:
@@ -249,7 +248,7 @@ def import_keys(fpath):
     return keys
 
 
-def tupac(binary, keyfile, filename):
+def tupac(binary, keyfile, filename, pack=True):
     # Initialize r2 for reading
     global r2
     r2 = r2pipe.open(binary, radare2home=R2_PATH)
@@ -264,6 +263,14 @@ def tupac(binary, keyfile, filename):
     assert(unpacker_addr)
     unpacker_addr = unpacker_addr[0]
 
+    # Add callback to skip junk instructions in dbg script
+    skipjunk = next(gen_func_name())
+    cmd = ''
+    cmd += 'begin {}'.format(skipjunk)
+    cmd += '\na $rip {}'.format(split_integer(len(TUPAC_BEG_MARKER)-1))
+    cmd += '\nend'
+    commands.append(cmd)
+
     bookmark = data.find(TUPAC_BEG_MARKER)
     while bookmark != -1:
         while data[bookmark:bookmark+4] != b'\x55\x48\x89\xe5':
@@ -277,27 +284,41 @@ def tupac(binary, keyfile, filename):
         func_end = data.find(b'\xc3', pack_end + len(TUPAC_END_MARKER))
         log('Packing function from 0x{:x} to 0x{:x} with key "{}"'.format(func_beg, func_end, key.hex()))
 
-        ## Nop the markers
+        ## Junk the markers
         data = list(data)
         for i in range(pack_beg, pack_beg + len(TUPAC_BEG_MARKER)):
             assert(data[i] == TUPAC_BEG_MARKER[i - pack_beg])
-            data[i] = 0x90
-            assert(data[i] == 0x90)
+            data[i] = randint(0, 255)
+            # assert(data[i] == randint(0, 255) 0x90)
         for i in range(pack_end, pack_end + len(TUPAC_END_MARKER)):
             assert(data[i] == TUPAC_END_MARKER[i - pack_end])
             data[i] = 0x90
             assert(data[i] == 0x90)
 
-        ## Pack the function
         data = bytes(data)
-        crypt = RC4_crypt(key, data[func_beg:func_end+1])
+        if pack:
+            ## Pack the function
+            crypt = RC4_crypt(key, data[func_beg:func_end+1])
 
-        data = data[:func_beg] + crypt + data[func_end + 1:]
+            data = data[:func_beg] + crypt + data[func_end + 1:]
 
-        ## Add a call to the unpacking handler for this offset
-        commands.append('b {} {}'.format(split_integer(func_beg), split_integer(unpacker_addr)))
-        ## Add a call to repack the function at the end
-        commands.append('b {} {}'.format(split_integer(func_end), split_integer(unpacker_addr)))
+            ## Add a call to the unpacking handler for this offset
+            commands.append('b {} {}'.format(split_integer(func_beg), split_integer(unpacker_addr)))
+            ## Add a call to repack the function at the end
+            commands.append('b {} {}'.format(split_integer(func_end), split_integer(unpacker_addr)))
+            ## Add a handler for when the bp will be disabled
+            fixjunk = next(gen_func_name())
+            cmd = ''
+            cmd += 'begin {}'.format(fixjunk)
+            # Write a jump
+            cmd += '\nw {} {}'.format(split_integer(pack_beg), split_integer(0xeb))
+            # Write offset to jump over junk
+            cmd += '\nw {} {}'.format(split_integer(pack_beg + 1), split_integer(len(TUPAC_BEG_MARKER) - 2))
+            cmd += '\na $rip 1'
+            cmd += '\nend'
+            commands.append(cmd)
+            # Add the bp to get around the junk
+            commands.append('bh {} {} {}'.format(split_integer(pack_beg), skipjunk, fixjunk))
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
@@ -332,7 +353,7 @@ def main(argv: list):
     cmds = obfuscate_all(input_binary, patched_binary)
 
     # Save current binary and do the packing
-    cmds += tupac(patched_binary, input_keys, input_binary + '.2pac')
+    cmds += tupac(patched_binary, input_keys, input_binary + '.2pac', True)
     # Shuffle it so it's harder to understand the script
     shuffle(cmds)
 
