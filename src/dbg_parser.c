@@ -228,8 +228,7 @@ void dbg_parse_command(const char* input)
 
 	// Get the command
 	// TODO The long name joke is probably not a good idea, wdyt?
-	if (!strncmp(word, "CreateBreakpointAtAddress", len) ||
-			!strncmp(word, "b", len)) {
+	if (!strncmp(word, "b", len)) {
 		// Break command takes two arguments
 		uint64_t bp_addr = 0;
 		uint64_t bp_handler = 0;
@@ -238,8 +237,7 @@ void dbg_parse_command(const char* input)
 		dbg_breakpoint_add_handler((void *) bp_addr, (void *) bp_handler, NULL);
 		//fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
 	}
-	else if (!strncmp(word, "CreateBreakpointAtAddressWithHandler", len) ||
-			!strncmp(word, "bh", len)) {
+	else if (!strncmp(word, "bh", len)) {
 		// Break command takes two arguments
 		uint64_t bp_addr = 0;
 		dbg_parse_expr(&bp_addr);
@@ -248,12 +246,10 @@ void dbg_parse_command(const char* input)
 		dbg_breakpoint_add_handler((void *) bp_addr, NULL, handler_name);
 		//fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function '%s'\n", bp_addr, handler_name);
 	}
-	else if (!strncmp(word, "ContinueProcess", len) ||
-			!strncmp(word, "c", len)) {
+	else if (!strncmp(word, "c", len)) {
 		dbg_continue(true);
 	}
-	else if (!strncmp(word, "WriteMemoryAt", len) ||
-			!strncmp(word, "w", len)) {
+	else if (!strncmp(word, "w", len)) {
 		// Break command takes two arguments
 		uint64_t offset = 0;
 		uint64_t what = 0;
