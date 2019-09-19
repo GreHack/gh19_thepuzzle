@@ -25,7 +25,7 @@
 void dbg_attach(int pid);
 
 void dbg_breakpoint_add(void *addr);
-void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler);
+void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler, const char *dhandler);
 void dbg_breakpoint_delete(uint64_t addr, bool restore);
 void dbg_breakpoint_delete_off(uint64_t offset, bool restore);
 void dbg_breakpoint_disable(uint64_t offset, uint64_t size);
@@ -41,6 +41,7 @@ uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes);
 void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data);
 void dbg_mem_write_va(uint64_t va, int nb_bytes, const uint8_t *data);
 void dbg_mem_show(int offset, int len);
+void dbg_mem_xor(uint64_t offset, uint64_t val);
 
 struct user_regs_struct *dbg_regs_get(void);
 void dbg_regs_set(struct user_regs_struct *regs);
@@ -53,6 +54,9 @@ void dbg_function_call(const char *uhandler);
 
 // Simulate the ret instruction
 void dbg_action_ret();
+
+// Useful function for debugging outside dbg.c
+uint64_t dbg_va_to_offset(uint64_t va);
 
 
 /* dbg_parser.c */

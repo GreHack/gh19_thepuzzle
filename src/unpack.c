@@ -70,7 +70,7 @@ int unpack(uint64_t offset)
 		}
 
 		if (map_du_pauvre_val[j] >= MAX_UNPACK) {
-#ifdef DEBUG_2PAC
+#ifdef DEBUG_DEBUGGER
 			fprintf(stderr, "Skipping unpacking... Breakpoints should have been deleted, this message should *never* appear\n");
 #endif
 			goto end_unpack;

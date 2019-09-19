@@ -227,24 +227,41 @@ void dbg_parse_command(const char* input)
 	// fprintf(stderr, "Read (init): %s\n", token_name[CURRENT_TOKEN]);
 
 	// Get the command
-	// TODO The long name joke is probably not a good idea, wdyt?
 	if (!strncmp(word, "b", len)) {
 		// Break command takes two arguments
 		uint64_t bp_addr = 0;
 		uint64_t bp_handler = 0;
 		dbg_parse_expr(&bp_addr);
 		dbg_parse_expr(&bp_handler);
-		dbg_breakpoint_add_handler((void *) bp_addr, (void *) bp_handler, NULL);
+		dbg_breakpoint_add_handler((void *) bp_addr, (void *) bp_handler, NULL, NULL);
 		//fprintf(stderr, "Adding bp at: 0x%lx (handler: 0x%lx)\n", bp_addr, bp_handler);
 	}
 	else if (!strncmp(word, "bh", len)) {
-		// Break command takes two arguments
+		// Break command takes two or three arguments
 		uint64_t bp_addr = 0;
 		dbg_parse_expr(&bp_addr);
-		char handler_name[32];
-		strncpy(handler_name, p, sizeof(handler_name));
-		dbg_breakpoint_add_handler((void *) bp_addr, NULL, handler_name);
-		//fprintf(stderr, "Adding bp at: 0x%lx (handler: User defined function '%s'\n", bp_addr, handler_name);
+		while (*p == ' ') {
+			p++;
+		}
+		char handler_name[32] = { 0 };
+		int i = 0;
+		while (!is_space(*p) && *p != '\0') {
+			handler_name[i] = *p;
+			i++;
+			p++;
+		}
+		while (*p == ' ') {
+			p++;
+		}
+		char death_handler_name[32] = { 0 };
+		i = 0;
+		while (!is_space(*p) && *p != '\0') {
+			death_handler_name[i] = *p;
+			i++;
+			p++;
+		}
+		// fprintf(stderr, "Adding bp at: 0x%lx (handler: '%s', death_handler: '%s')\n", bp_addr, handler_name, death_handler_name);
+		dbg_breakpoint_add_handler((void *) bp_addr, NULL, handler_name, death_handler_name);
 	}
 	else if (!strncmp(word, "c", len)) {
 		dbg_continue(true);
@@ -262,9 +279,7 @@ void dbg_parse_command(const char* input)
 			tmp >>= 8;
 			size++;
 		}
-#ifdef DEBUG_DEBUGGER
-		fprintf(stderr, "Writing memory: 0x%lx (%lx bytes)\n", what, size);
-#endif
+		// fprintf(stderr, "Write mem at %lx (%d) (%lx)\n", offset, size, what);
 		dbg_mem_write(offset, size, (uint8_t*) &what);
 	}
 	else if (!strncmp(word, "f", len)) {
@@ -278,9 +293,15 @@ void dbg_parse_command(const char* input)
 		uint64_t val_to_add = 0;
 		dbg_parse_expr(&reg_val);
 		dbg_parse_expr(&val_to_add);
+		// fprintf(stderr, "Val to add: %lx (new val: %lx)\n", val_to_add, reg_val + val_to_add);
 		dbg_regs_set_val(last_reg, reg_val + val_to_add);
-		//fprintf(stderr, "Val to add: %lx\n", val_to_add);
 		memset(last_reg, 0, sizeof(last_reg));
+	}
+	else if (!strncmp(word, "x", len)) {
+		// Let's xor with 1 the byte at this offset
+		uint64_t offset = 0;
+		dbg_parse_expr(&offset);
+		dbg_mem_xor(offset, 1);
 	}
 	else {
 		dbg_die("I don't understand what you say bro");

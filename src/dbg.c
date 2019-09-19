@@ -21,6 +21,8 @@ typedef struct debug_breakpoint_t {
 	uint8_t orig_data;
 	uint64_t handler; // TODO Maybe use a memory address as well to be consistent with addr
 	char *uhandler; // User defined function for handling a bp
+	char *dhandler; // Death handler function that properly fixes the code once the bp is deleted
+	uint64_t calls; // Represent the remaining allowed calls to that breakpoint
 	struct debug_breakpoint_t *next;
 } dbg_bp;
 
@@ -109,14 +111,14 @@ void dbg_attach(int pid)
  */
 void dbg_breakpoint_add(void *addr)
 {
-	dbg_breakpoint_add_handler(addr, NULL, NULL);
+	dbg_breakpoint_add_handler(addr, NULL, NULL, NULL);
 }
 
 /*
  * Add a breakpoint with its handler function.
  * Note: Both are offsets because of PIE, not actual VA
  */
-void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
+void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler, const char *dhandler)
 {
 	// Because of PIE, we add the base address to the target addr
 	addr = g_baddr + addr;
@@ -133,7 +135,10 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	bp->orig_data = trap & 0xff;
 	bp->handler = (uint64_t) handler;
 	bp->next = NULL;
-	if (uhandler) {
+	bp->calls = -1; // Infinite calls to this function are allowed
+
+	// Handle user handler
+	if (uhandler && *uhandler) {
 		// Copy handler name and remove newline
 		bp->uhandler = strdup(uhandler);
 		char *tmp = (char *) bp->uhandler;
@@ -146,6 +151,25 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 		}
 	} else {
 		bp->uhandler = NULL;
+	}
+
+	// Handle death handler
+	if (dhandler && *dhandler) {
+		bp->dhandler = strdup(dhandler);
+		char *tmp = (char *) bp->dhandler;
+		while (*tmp) {
+			if (*tmp == '\n') {
+				*tmp = '\0';
+				break;
+			}
+			tmp++;
+		}
+	} else {
+		bp->dhandler = NULL;
+	}
+
+	if (bp->uhandler || bp->dhandler) {
+		bp->calls = 20;
 	}
 
 	// Now add the breakpoint to the list
@@ -168,7 +192,7 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
 	}
 
 #ifdef DEBUG_DEBUGGER
-	fprintf(stderr, "Added BP at %p (0x%lx) (%06lx, %16s)\n", addr, (uint64_t) addr - g_baddr, (uint64_t) bp->handler, bp->uhandler);
+	fprintf(stderr, "Added BP at %p (0x%lx) (%06lx, %16s, %16s) (%p)\n", addr, (uint64_t) addr - g_baddr, (uint64_t) bp->handler, bp->uhandler, bp->dhandler, bp);
 #endif
 }
 
@@ -177,6 +201,7 @@ void dbg_breakpoint_add_handler(void *addr, void *handler, const char *uhandler)
  */
 void dbg_breakpoint_delete(uint64_t addr, bool restore)
 {
+	// fprintf(stderr, "Deleting bp at %lx\n", addr - g_baddr);
 	if (!breakpoints) {
 #ifdef DEBUG_DEBUGGER
 		fprintf(stderr, "ERROR: No breakpoints, cannot delete\n");
@@ -187,28 +212,31 @@ void dbg_breakpoint_delete(uint64_t addr, bool restore)
 	tmp.next = breakpoints;
 
 	dbg_bp *head = &tmp;
-	while (head->next->next && head->next->addr != addr) {
+	dbg_bp *old = NULL;
+	while (head && head->addr != addr) {
+		old = head;
 		head = head->next;
 	}
-	if (head->next->next) {
-		dbg_bp *old = head->next;
-		head->next = head->next->next;
-		if (old == breakpoints) {
-			breakpoints = old->next;
+	if (head) {
+		old->next = head->next;
+		if (head == breakpoints) {
+			breakpoints = head->next;
 		}
 		if (restore) {
 #ifdef DEBUG_DEBUGGER
-			uint8_t *mem = dbg_mem_read_va(old->addr, 1);
-			fprintf(stderr, "Restored original value during bp deletion: %02x -> %02x\n", *mem, old->orig_data);
-			free(mem);
+			uint8_t *mem = dbg_mem_read_va(head->addr, 1);
+			fprintf(stderr, "Restored original value during bp deletion: %02x -> %02x\n", *mem, head->orig_data);
+			FREE(mem);
 #endif
-			dbg_mem_write_va(old->addr, 1, (uint8_t*) &old->orig_data);
+			dbg_mem_write_va(head->addr, 1, (uint8_t*) &head->orig_data);
 		}
-		FREE(old->uhandler);
-		FREE(old);
+		FREE(head->uhandler);
+		FREE(head->dhandler);
+		FREE(head);
 	} else {
 #ifdef DEBUG_DEBUGGER
-		fprintf(stderr, "WARNING: Could not find breakpoint\n");
+		fprintf(stderr, "WARNING: Could not find breakpoint: %lx\n", addr - g_baddr);
+		dbg_die("Could not delete breakpoint!");
 #endif
 	}
 }
@@ -293,7 +321,7 @@ void dbg_break_handle(uint64_t rip)
 	}
 	if (!ptr) {
 #ifdef DEBUG_DEBUGGER
-		fprintf(stderr, "WARNING: Expected a breakpoint but there was none heh\n");
+		fprintf(stderr, "WARNING: Expected a breakpoint but there was none heh!\n");
 #endif
 		return;
 	}
@@ -313,17 +341,42 @@ void dbg_break_handle(uint64_t rip)
 		fprintf(stderr, ">>>>>> CALLING USER HANDLER '%s'!\n", ptr->uhandler);
 #endif
 		dbg_function_call(ptr->uhandler);
+		if (ptr->calls != -1) {
+			ptr->calls--;
+			// fprintf(stderr, "%lx -> %ld\n", ptr->addr - g_baddr, ptr->calls);
+		}
+	}
+
+	if (ptr->calls == 0) {
+		// We reached the number 0, now just call the death handler and delete the breakpoint
+		char dhandler[32] = { 0 };
+		bool handle = false;
+		if (ptr->dhandler) {
+			strncpy(dhandler, ptr->dhandler, 32);
+			handle = true;
+		}
+
+		dbg_breakpoint_delete(ptr->addr, true);
+
+		if (handle) {
+#ifdef DEBUG_DEBUGGER
+			fprintf(stderr, ">>>>>> CALLING DEATH HANDLER '%s'!\n", dhandler);
+#endif
+			dbg_function_call(dhandler);
+		}
+
+		// Before continuing, since we deleted the breakpoint, continue won't
+		// do the 1 byte substraction to RIP, so let's just do it here manually
+		struct user_regs_struct *regs = dbg_regs_get();
+		regs->rip = regs->rip - 1;
+		dbg_regs_set(regs);
+		free(regs);
 	}
 
 #ifdef DEBUG_DEBUGGER
 	fprintf(stderr, ">>>>>> Automatic continue after handling breakpoint!\n");
 #endif
-#ifndef TEST
-	// TODO With the fix in dbg_continue, this is probably useless now
-	dbg_continue(((void*)(ptr->handler + g_baddr)) != unpack);
-#else
 	dbg_continue(false);
-#endif
 }
 
 /*
@@ -453,6 +506,18 @@ uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes)
 	return dbg_mem_read(addr - g_baddr, nb_bytes);
 }
 
+void dbg_mem_xor(uint64_t offset, uint64_t val)
+{
+	uint8_t *mem = dbg_mem_read(offset, 8);
+	uint64_t absmem = *((uint64_t *) mem);
+	FREE(mem);
+
+	// fprintf(stderr, "XORING: %lx -> ", absmem);
+	absmem ^= val;
+	// fprintf(stderr, "%lx\n", absmem);
+	dbg_mem_write(offset, 8, (uint8_t *) &absmem);
+}
+
 /*
  * Write debuggee's memory.
  */
@@ -547,6 +612,8 @@ uint64_t dbg_regs_get_val(const char *reg)
 		val = regs->rbp & 0xffffffff;
 	} else if (!strcmp(reg, "esp")) {
 		val = regs->rsp & 0xffffffff;
+	} else if (!strcmp(reg, "eip")) {
+		val = regs->rip & 0xffffffff;
 
 	} else if (!strcmp(reg, "rax")) {
 		val = regs->rax;
@@ -564,6 +631,8 @@ uint64_t dbg_regs_get_val(const char *reg)
 		val = regs->rbp;
 	} else if (!strcmp(reg, "rsp")) {
 		val = regs->rsp;
+	} else if (!strcmp(reg, "rip")) {
+		val = regs->rip;
 	}
 	FREE(regs);
 
@@ -589,6 +658,8 @@ void dbg_regs_set_val(const char *reg, uint64_t newval)
 		regs->rsi = newval;
 	} else if (!strcmp(reg, "esp") || !strcmp(reg, "rsp")) {
 		regs->rsp = newval;
+	} else if (!strcmp(reg, "eip") || !strcmp(reg, "rip")) {
+		regs->rip = newval;
 	}
 	dbg_regs_set(regs);
 	FREE(regs);
@@ -690,3 +761,7 @@ void dbg_action_ret()
 	FREE(regs);
 }
 
+inline uint64_t dbg_va_to_offset(uint64_t va)
+{
+	return va - g_baddr;
+}

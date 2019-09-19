@@ -19,7 +19,7 @@ DEPS=$(patsubst %,$(HDRDIR)/%,$(_DEPS))
 OBJ=$(patsubst %,$(OBJDIR)/%,$(_OBJ))
 SRC=$(patsubst %,$(SRCDIR)/%,$(_SRC))
 
-test_obfuscation: CFLAGS += -D TEST_OBFUSCATION -D DEBUG # -D DEBUG_DEBUGGER -D DEBUG_2PAC # -D DEBUG_MAIN -D DEBUG_LOAD
+test_obfuscation: CFLAGS += -D TEST_OBFUSCATION -D DEBUG # -D DEBUG_DEBUGGER # -D DEBUG_2PAC # -D DEBUG_MAIN -D DEBUG_LOAD
 test_obfuscation: flag $(OBJ)
 
 debug: CFLAGS += -g -D DEBUG_OCR -D DEBUG -D DEBUG_MAIN -D DEBUG_LOAD -D DEBUG_CHECK -D DEBUG_DEBUGGER # -D DEBUG_IMG

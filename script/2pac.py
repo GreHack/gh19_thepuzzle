@@ -34,6 +34,8 @@ def gen_func_name(alt=''):
 
 
 def split_integer(num):
+    return num
+    # TODO Make sure the number is not too big to avoid overflows in the C parser
     """ Split an integer into additions, just to bother people """
     assert type(num) == int
 
@@ -51,11 +53,18 @@ def split_integer(num):
     return res
 
 
+def patchit():
+    if IS_TEST:
+        return True
+    return randint(0, 20) != 0
+
+
 
 def obfuscate_function(beg, end):
     offset = beg
     cmds = []
     repatch = []
+    fcname = next(gen_func_name())
     while (offset < end):
         instr = r2.cmdj('pdj 1 @ {}'.format(offset))[0]
         # print(hex(instr['offset']), instr['disasm'], instr['bytes'], instr['size'])
@@ -72,7 +81,7 @@ def obfuscate_function(beg, end):
         # TODO Handle jle, jg zf = 1 OR sf != of ; zf = 0 ^ sf = of
         # TODO Handle [0x76, 0x77]: # jbe, ja
         if instr['type'] in ['jmp', 'ujmp', 'cjmp'] and opcode[0] in [0x74, 0x75]: # je, jne
-            if not IS_TEST and randint(0, 10) != 0:
+            if not patchit():
                 offset += instr['size']
                 continue
 
@@ -81,17 +90,22 @@ def obfuscate_function(beg, end):
 
             new_opcode = bytes([opcode[0] ^ 1, opcode[1]])
             fname = next(gen_func_name())
-            cmds.append('begin {}\nf z\nend'.format(fname))
-            cmds.append('bh {} {}'.format(split_integer(offset), fname))
+            death_func_name = next(gen_func_name())
 
-            # Patch the binary
             assert len(new_opcode) == len(opcode)
             assert new_opcode != opcode
+
+            cmds.append('begin {}\nf z\nend'.format(fname))
+            cmds.append('begin {}\nf z\nx {}\nend'.format(death_func_name, split_integer(offset)))
+            cmds.append('bh {} {} {}'.format(split_integer(offset), fname, death_func_name))
+
+            # Patch the binary
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
 
         elif instr['type'] in ['jmp', 'ujmp', 'cjmp'] and instr['size'] == 2:
             # Do not patch every jump, just do it randomly
-            if not IS_TEST and randint(0, 10) != 0:
+            # TODO Make sure the first jump in the screenshot function is patched properly
+            if not patchit():
                 offset += instr['size']
                 continue
 
@@ -106,22 +120,23 @@ def obfuscate_function(beg, end):
             # Add calls to patch the bytes
             fname = next(gen_func_name())
             cmds.append('begin {}\nw {} {}\nend'.format(fname, split_integer(offset + 1), split_integer(original)))
-            cmds.append('bh {} {}'.format(split_integer(offset), fname))
+            cmds.append('bh {} {} {}'.format(split_integer(offset), fname, fname))
             assert opcode != new_opcode
             assert len(new_opcode) == len(opcode)
 
             # Add calls to repatch bad bytes at the end of the function
             # To avoid people from just dumping the binary
-            repatch.append((offset + 1, randint(0, 255)))
+            repatch.append((offset + 1, original))
 
             # Patch the binary
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
+
         elif instr['type'] == 'mov' and 'val' in instr:
             ops = r2.cmdj('aoj @ {}'.format(offset))[0]['opex']['operands']
             if ops[0]['type'] != 'reg':
                 offset += instr['size']
                 continue
-            if not IS_TEST and randint(0, 10) != 0:
+            if not patchit():
                 offset += instr['size']
                 continue
 
@@ -129,31 +144,36 @@ def obfuscate_function(beg, end):
             log('Patch3 at 0x{:x}: "{}" ({})'.format(offset, instr['disasm'], instr['bytes']))
 
             # Add calls to fix the reg value on the fly
-            fname = next(gen_func_name())
             reg = ops[0]['value']
             assert ops[1]['type'] == 'imm'
             reg_val = ops[1]['value']
 
             if instr['size'] == 5:
+                op_beg = [opcode[0]]
+                new_val = randint(0, 2**32)
+                op_end = pack('<I', new_val)
+            elif instr['size'] == 6:
+                op_beg = [opcode[0], opcode[1]]
                 new_val = randint(0, 2**32)
                 op_end = pack('<I', new_val)
             elif instr['size'] == 10:
+                op_beg = [opcode[0], opcode[1]]
                 new_val = randint(0, 2**64)
                 op_end = pack('<Q', new_val)
             else:
                 print('Error: Unexpected size: {}!'.format(instr['size']))
-            diff = reg_val - new_val
 
-            if 'movabs' in instr['disasm']:
-                op_beg = [opcode[0], opcode[1]]
-            else:
-                op_beg = [opcode[0]]
+            diff = reg_val - new_val
             new_opcode = bytes(op_beg) + op_end
             assert opcode != new_opcode
             assert len(opcode) == len(new_opcode)
 
+            fname = next(gen_func_name())
+            death_func_name = next(gen_func_name())
             cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, diff))
-            cmds.append('bh {} {}'.format(split_integer(offset + instr['size']), fname))
+            original_opcode = int.from_bytes(opcode, byteorder='little')
+            cmds.append('begin {}\nw {} {}\na $rip -{}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
+            cmds.append('bh {} {} {}'.format(split_integer(offset + instr['size']), fname, death_func_name))
 
             # Patch the binary
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
@@ -163,15 +183,22 @@ def obfuscate_function(beg, end):
 
     # Add a debugger function called at the end of a function
     # that will repatch everything done
+    # to avoid process dumping
     if repatch:
-        fcname = next(gen_func_name())
         cmd = ''
+        cmd2 = ''
         cmd += 'begin {}'.format(fcname)
+        dhname = next(gen_func_name())
+        cmd2 += 'begin {}'.format(dhname)
         for patch in repatch:
-            cmd += '\nw {} {}'.format(split_integer(patch[0]), split_integer(patch[1]))
+            # TODO For cmd just add a write random byte function so it's always different
+            cmd += '\nw {} {}'.format(split_integer(patch[0]), split_integer(randint(0, 255)))
+            cmd2 += '\nw {} {}'.format(split_integer(patch[0]), split_integer(patch[1]))
         cmd += '\nend'
+        cmd2 += '\nend'
         cmds.append(cmd)
-        cmds.append('bh {} {}'.format(split_integer(end), fcname))
+        cmds.append(cmd2)
+        cmds.append('bh {} {} {}'.format(split_integer(end), fcname, dhname))
     return cmds
 
 

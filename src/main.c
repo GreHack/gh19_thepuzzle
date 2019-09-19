@@ -122,18 +122,19 @@ void father(int child_pid, char *script_path, char *b64_key)
 		regs = dbg_regs_get();
 		if (WIFEXITED(status)) {
 #ifdef DEBUG_DEBUGGER
-			printf("Exited, status=%d\n", WEXITSTATUS(status));
+			fprintf(stderr, "Exited, status=%d\n", WEXITSTATUS(status));
 #endif
 			break;
 		} else if (WIFSIGNALED(status)) {
 #ifdef DEBUG_DEBUGGER
-			printf("Killed by signal %d\n", WTERMSIG(status));
+			fprintf(stderr, "Killed by signal %d\n", WTERMSIG(status));
 #endif
 			break;
 		} else if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
 #ifdef DEBUG_DEBUGGER
-			printf("Stopped by signal %d (%s):\n", sig, strsignal(sig));
+			fprintf(stderr, "Stopped by signal %d (%s): ", sig, strsignal(sig));
+			fprintf(stderr, "%llx (%llx)\n", regs->rip, dbg_va_to_offset(regs->rip));
 #endif
 			if (sig == SIGTRAP) {
 				dbg_break_handle(regs->rip);
@@ -143,10 +144,10 @@ void father(int child_pid, char *script_path, char *b64_key)
 				EXIT(1, "unhandled signal")
 			}
 		} else if (WIFCONTINUED(status)) {
-			printf("Continued\n");
+			fprintf(stderr, "Continued\n");
 		}
+		FREE(regs);
 	}
-	FREE(regs);
 }
 
 int main(int argc, char **argv)
