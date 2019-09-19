@@ -33,8 +33,8 @@ open("include/gen/flag.h", "w").write(header)
 
 ### Generate flag image to test challenge
 
-MARGIN_LEFT = 10
-MARGIN_RIGHT = 10
+MARGIN_LEFT = 20
+MARGIN_RIGHT = 20
 MARGIN = 10
 MARGIN_BOTTOM = 10
 MARGIN_TOP = 10
