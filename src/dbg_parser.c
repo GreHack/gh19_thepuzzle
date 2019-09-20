@@ -288,6 +288,19 @@ void dbg_parse_command(const char* input)
 #endif
 		dbg_mem_write(offset, size, (uint8_t*) &what);
 	}
+	else if (!strncmp(word, "wr", len)) {
+		// Write n random bytes at destination
+		uint64_t location = 0;
+		uint64_t size = 0;
+		dbg_parse_expr(&location);
+		dbg_parse_expr(&size);
+		uint8_t *what = malloc(size);
+		for (uint64_t i = 0; i < size; i++) {
+			what[i] = rand() % 256;
+		}
+		dbg_mem_write(location, size, what);
+		free(what);
+	}
 	else if (!strncmp(word, "f", len)) {
 		// Argument one is the target flag
 		char flag = ptr[1];
