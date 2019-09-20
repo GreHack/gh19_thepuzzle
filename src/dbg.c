@@ -43,7 +43,11 @@ typedef struct dbg_function_t {
 /* Our user defined functions list head */
 dbg_function *functions = NULL;
 
-const int MAX_BP_CALL = 20;
+#ifndef MAX_BP_CALL
+#define MAX_BP_CALL 20
+#endif
+
+asm("mem_jmp_array: .fill 600");
 
 #ifdef DEBUG_DEBUGGER
 void dbg_breakpoint_debugprint()
@@ -545,7 +549,10 @@ void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data)
 		//uint8_t *fu = dbg_mem_read(offset + i, nb_bytes);
 		//fprintf(stderr, "---------BEFORE WRITE: (%lx) %016lx\n", offset + i, *((uint64_t*)fu));
 		//fprintf(stderr, "---------       WRITE:        %016lx\n", word);
-		ptrace(PTRACE_POKETEXT, g_pid, addr + i, word);
+		long ret = ptrace(PTRACE_POKETEXT, g_pid, addr + i, word);
+		if (ret == -1) {
+			dbg_die("Could not write to memory!");
+		}
 		//fu = dbg_mem_read(offset + i, nb_bytes);
 		//fprintf(stderr, "----------AFTER WRITE: (%lx) %016lx\n", offset + i, *((uint64_t*)fu));
 	}
@@ -589,7 +596,10 @@ struct user_regs_struct *dbg_regs_get(void)
 
 void dbg_regs_set(struct user_regs_struct *regs)
 {
-	ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
+	long ret = ptrace(PTRACE_SETREGS, g_pid, NULL, regs);
+	if (ret == -1) {
+		dbg_die("Could not set registers!");
+	}
 }
 
 void dbg_regs_flag_reverse(char flag)

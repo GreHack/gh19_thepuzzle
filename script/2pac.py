@@ -19,6 +19,10 @@ IS_TEST = False
 
 DO_NOT_OBFUSCATE = [] # ['kd_compare']
 
+JMP_PATCH_LOC = None
+JMP_COUNT = 0
+JMP_DEST_SIZE = 4
+
 
 def log(msg):
     print('[2PAC]', msg)
@@ -64,7 +68,6 @@ def obfuscate_function(beg, end):
     offset = beg
     cmds = []
     repatch = []
-    fcname = next(gen_func_name())
     while (offset < end):
         instr = r2.cmdj('pdj 1 @ {}'.format(offset))[0]
         # print(hex(instr['offset']), instr['disasm'], instr['bytes'], instr['size'])
@@ -111,22 +114,41 @@ def obfuscate_function(beg, end):
 
             ## Patch1: Make jump destination random
             log('Patch1 at 0x{:x}: "{}" ({})'.format(offset, instr['disasm'], instr['bytes']))
+            # Get the jump dest memory location
+            global JMP_COUNT
+            global JMP_PATCH_LOC
+            if JMP_PATCH_LOC is None:
+                JMP_PATCH_LOC = r2.cmdj('isj. @ loc.mem_jmp_array')['vaddr']
+            mem_location = JMP_PATCH_LOC + JMP_COUNT * JMP_DEST_SIZE
+            JMP_COUNT += 1
 
             n = instr['size'] - 1
-            destination = [randint(0, 255) for _ in range(n)]
+            assert n <= JMP_DEST_SIZE
+            destination = bytes([randint(0, 255) for _ in range(n)])
             original = int.from_bytes(opcode[1:], byteorder='big')
-            new_opcode = opcode[:1] + bytes(destination)
+            new_opcode = opcode[:1] + destination
+            assert len(new_opcode) == len(opcode)
+
 
             # Add calls to patch the bytes
             fname = next(gen_func_name())
-            cmds.append('begin {}\nw {} {}\nend'.format(fname, split_integer(offset + 1), split_integer(original)))
-            cmds.append('bh {} {} {}'.format(split_integer(offset), fname, fname))
-            assert opcode != new_opcode
-            assert len(new_opcode) == len(opcode)
+            bp_func  = 'begin {}\n'.format(fname)
+            bp_func += 'w {} {}\n'.format(split_integer(offset + 1), split_integer(original))
+            bp_func += 'wr {} {}\n'.format(split_integer(mem_location), split_integer(JMP_DEST_SIZE))
+            bp_func += 'end'
+            cmds.append(bp_func)
+
+            dfname = next(gen_func_name())
+            bp_dfunc  = 'begin {}\n'.format(dfname)
+            bp_dfunc += 'w {} {}\n'.format(split_integer(mem_location), split_integer(original))
+            bp_dfunc += 'end'
+            cmds.append(bp_dfunc)
+
+            cmds.append('bh {} {} {}'.format(split_integer(offset), fname, dfname))
 
             # Add calls to repatch bad bytes at the end of the function
             # To avoid people from just dumping the binary
-            repatch.append((offset + 1, original))
+            repatch.append((offset + 1, mem_location, n))
 
             # Patch the binary
             r2.cmd('wx {} @ {}'.format(new_opcode.hex(), offset))
@@ -172,7 +194,6 @@ def obfuscate_function(beg, end):
             death_func_name = next(gen_func_name())
             cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, diff))
             original_opcode = int.from_bytes(opcode, byteorder='little')
-            # cmds.append('begin {}\nw {} {}\na $rip 0-{}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
             cmds.append('begin {}\nw {} {} {}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
             cmds.append('bh {} {} {}'.format(split_integer(offset + instr['size']), fname, death_func_name))
 
@@ -186,20 +207,14 @@ def obfuscate_function(beg, end):
     # that will repatch everything done
     # to avoid process dumping
     if repatch:
+        fcname = next(gen_func_name())
         cmd = ''
-        cmd2 = ''
         cmd += 'begin {}'.format(fcname)
-        dhname = next(gen_func_name())
-        cmd2 += 'begin {}'.format(dhname)
         for patch in repatch:
-            # TODO For cmd just add a write random byte function so it's always different
-            cmd += '\nw {} {}'.format(split_integer(patch[0]), split_integer(randint(0, 255)))
-            cmd2 += '\nw {} {}'.format(split_integer(patch[0]), split_integer(patch[1]))
+            cmd += '\nn {} {} {}'.format(split_integer(patch[0]), split_integer(patch[1]), split_integer(patch[2]))
         cmd += '\nend'
-        cmd2 += '\nend'
         cmds.append(cmd)
-        cmds.append(cmd2)
-        cmds.append('bh {} {} {}'.format(split_integer(end), fcname, dhname))
+        cmds.append('bh {} {}'.format(split_integer(end), fcname))
     return cmds
 
 
@@ -231,6 +246,8 @@ def obfuscate_all(source, output):
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
 
+    # Write random shit in the mem_jmp_array
+    r2.cmd('wr 600 @ loc.mem_jmp_array')
     r2.quit()
     return cmds
 
