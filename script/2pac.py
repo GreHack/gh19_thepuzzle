@@ -300,6 +300,7 @@ def tupac(binary, keyfile, filename, pack=True):
         pack_end = data.find(TUPAC_END_MARKER, pack_beg)
         func_end = data.find(b'\xc3', pack_end + len(TUPAC_END_MARKER))
         log('Packing function from 0x{:x} to 0x{:x} with key "{}"'.format(func_beg, func_end, key.hex()))
+        assert func_beg < func_end
 
         ## Junk the markers
         data = list(data)
@@ -339,6 +340,17 @@ def tupac(binary, keyfile, filename, pack=True):
 
         # Now go to the next function
         bookmark = data.find(TUPAC_BEG_MARKER, bookmark + len(TUPAC_BEG_MARKER))
+
+    # Custom check for hide_me and start_timer
+    if r2.cmd('is~hide_me'):
+        r2.cmd('af @ sym.hide_me')
+        instr = r2.cmdj('pdfj @ sym.hide_me')
+        for i in instr['ops']:
+            if i['type'] == 'call' and 'check_user' in i['disasm']:
+                hfunc = next(gen_func_name())
+                func_loc = r2.cmdj('isj. @ sym.start_timer')['vaddr']
+                commands.append('begin {}\nmc {}\nend'.format(hfunc, split_integer(func_loc)))
+                commands.append('bh {} {}'.format(split_integer(i['offset']), hfunc))
 
     # Write the modified binary
     with open(filename, 'wb') as f:

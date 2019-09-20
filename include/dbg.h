@@ -54,6 +54,7 @@ bool dbg_function_register(const char* firstline, FILE *fileptr);
 void dbg_function_call(const char *uhandler);
 
 // Simulate the ret instruction
+void dbg_action_call(uint64_t offset);
 void dbg_action_ret();
 
 // Useful function for debugging outside dbg.c

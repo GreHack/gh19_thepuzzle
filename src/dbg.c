@@ -479,16 +479,24 @@ void dbg_continue(bool restore)
  */
 uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes)
 {
+	return dbg_mem_read_va(offset + g_baddr, nb_bytes);
+}
+
+uint8_t *dbg_mem_read_va(uint64_t va, int nb_bytes)
+{
 	// Make sure the requested amount of bytes is aligned
 	while (nb_bytes % sizeof(long)) {
 		nb_bytes++;
 	}
 	uint8_t *buffer = malloc(nb_bytes);
 	unsigned long ret;
-	void *addr = (void *) g_baddr + offset;
+	void *addr = (void *) va;
 	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
 		ret = ptrace(PTRACE_PEEKTEXT, g_pid, addr + i, 0);	
 		if (ret == 0xffffffffffffffff) {
+#ifdef DEBUG_DEBUGGER
+			fprintf(stderr, "Could not read %d bytes at %p + %d (%lx)\n", nb_bytes, addr, i, va + i - g_baddr);
+#endif
 			dbg_die("Reading memory failed!");
 		}
 		buffer[i] = ret & 0xFF;
@@ -501,11 +509,6 @@ uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes)
 		buffer[i + 7] = (ret >> 56) & 0xFF;
 	}
 	return buffer;
-}
-
-uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes)
-{
-	return dbg_mem_read(addr - g_baddr, nb_bytes);
 }
 
 void dbg_mem_xor(uint64_t offset, uint64_t val)
@@ -525,12 +528,18 @@ void dbg_mem_xor(uint64_t offset, uint64_t val)
  */
 void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data)
 {
-	void *addr = (void *) g_baddr + offset;
+	dbg_mem_write_va(offset + g_baddr, nb_bytes, data);
+}
+
+void dbg_mem_write_va(uint64_t va, int nb_bytes, const uint8_t *data)
+{
+	void *addr = (void *) va;
 	unsigned long word;
+
 	for (int i = 0; i < nb_bytes; i += sizeof(long)) {
 		size_t diff = nb_bytes - i;
 		if (diff < sizeof(long)) {
-			uint8_t *old_data = dbg_mem_read(offset + i, sizeof(long));
+			uint8_t *old_data = dbg_mem_read_va(va + i, sizeof(long));
 			word = ((long *)old_data)[0];
 			word >>= diff * sizeof(long);
 			word <<= diff * sizeof(long);
@@ -542,21 +551,16 @@ void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data)
 		} else {
 			word = *((unsigned long *) (data + i));
 		}
-		//uint8_t *fu = dbg_mem_read(offset + i, nb_bytes);
-		//fprintf(stderr, "---------BEFORE WRITE: (%lx) %016lx\n", offset + i, *((uint64_t*)fu));
+		//uint8_t *fu = dbg_mem_read_va(va + i, nb_bytes);
+		//fprintf(stderr, "---------BEFORE WRITE: (%lx) %016lx\n", va + i, *((uint64_t*)fu));
 		//fprintf(stderr, "---------       WRITE:        %016lx\n", word);
 		long ret = ptrace(PTRACE_POKETEXT, g_pid, addr + i, word);
 		if (ret == -1) {
 			dbg_die("Could not write to memory!");
 		}
-		//fu = dbg_mem_read(offset + i, nb_bytes);
-		//fprintf(stderr, "----------AFTER WRITE: (%lx) %016lx\n", offset + i, *((uint64_t*)fu));
+		//fu = dbg_mem_read_va(va + i, nb_bytes);
+		//fprintf(stderr, "----------AFTER WRITE: (%lx) %016lx\n", va + i, *((uint64_t*)fu));
 	}
-}
-
-void dbg_mem_write_va(uint64_t va, int nb_bytes, const uint8_t *data)
-{
-	dbg_mem_write((int) (va - g_baddr), nb_bytes, data);
 }
 
 void dbg_mem_copy(uint64_t dest, uint64_t size, uint64_t from)
@@ -765,6 +769,26 @@ void dbg_function_call(const char *uhandler)
 		fptr = fptr->next;
 	}
 }
+
+void dbg_action_call(uint64_t offset)
+{
+	// Update RIP and RSP
+	struct user_regs_struct *regs = dbg_regs_get();
+	regs->rsp -= 8;
+	// 4 because call size is 5 - 1 because of int3 byte
+	uint64_t ret_addr = regs->rip + 4;
+	regs->rip = g_baddr + offset;
+	dbg_regs_set(regs);
+
+	// Push ret address on stack
+	dbg_mem_write_va(regs->rsp, 8, (uint8_t *)&ret_addr);
+	FREE(regs);
+
+#ifdef DEBUG_DEBUGGER
+	fprintf(stderr, "Calling function at 0x%lx (ret at 0x%lx)\n", offset, ret_addr);
+#endif
+}
+
 
 void dbg_action_ret()
 {

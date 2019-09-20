@@ -8,7 +8,7 @@ HDRPACKEDDIR=include/packed
 EXEC=main
 CC=gcc
 CFLAGS=-Wall -Wextra -I$(HDRDIR) -I$(HDRPACKEDDIR) -fPIC -g
-LDFLAGS=-lX11 -lm
+LDFLAGS=-lX11 -lm -lpthread
 
 all: $(EXEC)
 

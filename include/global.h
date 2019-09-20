@@ -17,6 +17,7 @@
 
 /***** OBFUSCATION-RELATED VARIABLES *****/
 
+
 // GiveUs2PacBack
 #define TUPAC_BEG asm volatile(".byte 0x47, 0x69, 0x76, 0x65, 0x55, 0x73, 0x32, 0x50, 0x61, 0x63, 0x42, 0x61, 0x63, 0x6b");
 // LetTheLegendResurrect
@@ -40,5 +41,8 @@ rc4_state_t *kd_rc4_state;
 #define MAX_UNPACK 3
 // Define maximum number of packed functions in the binary
 #define NFUNC 26
+
+// If the child takes more than xx seconds, just kill it
+#define CHILD_MAX_SLEEP_TIME 15
 
 #endif

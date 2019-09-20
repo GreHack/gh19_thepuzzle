@@ -9,6 +9,10 @@
 #include "sha256.h"
 #include "gen/flag.h"
 
+#include <pthread.h>
+#include <time.h>
+#include <unistd.h>
+
 bool check_flag(char *input)
 {
 	TUPAC_BEG
@@ -37,4 +41,42 @@ bool check_flag(char *input)
 	bool res = 0 == strncmp((char *) input_hash, (char *) flag_hash, 32);
 	TUPAC_END
 	return res;
+}
+
+static void time_die()
+{
+#ifdef DEBUG_DEBUGGER
+	fprintf(stderr, "Dead because time has passed!\n");
+#endif
+	fprintf(stdout, "Come on, give me some input to process, man.\n");
+	exit(0);
+}
+
+static void *check_time(void *useless)
+{
+	if (useless == NULL) {
+		exit(3);
+	}
+	clock_t first = clock();
+	do {
+		clock_t diff = clock() - first;
+		int nbsec = diff / CLOCKS_PER_SEC;
+		if (nbsec >= CHILD_MAX_SLEEP_TIME) {
+			time_die();
+		}
+#ifdef DEBUG_DEBUGGER
+		fprintf(stderr, "TIME HAS PASSED: %d!\n", nbsec);
+#endif
+		sleep(1);
+	} while (1);
+	return NULL;
+}
+
+int start_timer(char *useless)
+{
+	pthread_t check_time_thread;
+	if (pthread_create(&check_time_thread, NULL, check_time, useless)) {
+		return 1;
+	}
+	return 0;
 }

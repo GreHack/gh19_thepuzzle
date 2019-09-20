@@ -306,6 +306,12 @@ void dbg_parse_command(const char* input)
 		char flag = ptr[1];
 		dbg_regs_flag_reverse(flag);
 	}
+	else if (!strncmp(word, "mc", len)) {
+		// First argument is the address to call
+		uint64_t calldest;
+		dbg_parse_expr(&calldest);
+		dbg_action_call(calldest);
+	}
 	else if (!strncmp(word, "a", len)) {
 		// Add a value to a register
 		uint64_t reg_val = 0;
