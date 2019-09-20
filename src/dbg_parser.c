@@ -270,16 +270,22 @@ void dbg_parse_command(const char* input)
 		// Break command takes two arguments
 		uint64_t offset = 0;
 		uint64_t what = 0;
+		uint64_t size = 0;
 		dbg_parse_expr(&offset);
 		dbg_parse_expr(&what);
-		// Get what size and write it
-		uint64_t tmp = what;
-		size_t size = 0;
-		while (tmp) {
-			tmp >>= 8;
-			size++;
+		dbg_parse_expr(&size);
+		// fprintf(stderr, "Parsed: %lx %lx %ld\n", offset, what, size);
+		if (size == 0) {
+			// Automatically detect the size
+			uint64_t tmp = what;
+			while (tmp) {
+				tmp >>= 8;
+				size++;
+			}
 		}
-		// fprintf(stderr, "Write mem at %lx (%d) (%lx)\n", offset, size, what);
+#ifdef DEBUG_DEBUGGER
+		fprintf(stderr, "Write mem at %lx (%ld) (%lx)\n", offset, size, what);
+#endif
 		dbg_mem_write(offset, size, (uint8_t*) &what);
 	}
 	else if (!strncmp(word, "f", len)) {

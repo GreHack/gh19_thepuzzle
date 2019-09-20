@@ -173,7 +173,7 @@ def obfuscate_function(beg, end):
             cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, diff))
             original_opcode = int.from_bytes(opcode, byteorder='little')
             # cmds.append('begin {}\nw {} {}\na $rip 0-{}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
-            cmds.append('begin {}\nw {} {}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
+            cmds.append('begin {}\nw {} {} {}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
             cmds.append('bh {} {} {}'.format(split_integer(offset + instr['size']), fname, death_func_name))
 
             # Patch the binary
