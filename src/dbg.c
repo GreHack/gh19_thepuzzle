@@ -43,10 +43,6 @@ typedef struct dbg_function_t {
 /* Our user defined functions list head */
 dbg_function *functions = NULL;
 
-#ifndef MAX_BP_CALL
-#define MAX_BP_CALL 20
-#endif
-
 asm("mem_jmp_array: .fill 600");
 
 #ifdef DEBUG_DEBUGGER
