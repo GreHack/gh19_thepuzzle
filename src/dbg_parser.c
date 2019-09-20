@@ -324,6 +324,17 @@ void dbg_parse_command(const char* input)
 		dbg_parse_expr(&offset);
 		dbg_mem_xor(offset, 1);
 	}
+	else if (!strncmp(word, "n", len)) { // I don't know why 'n' but c was already taken
+		// Copy n bytes from memory to memory location
+		uint64_t dest = 0;
+		uint64_t from = 0;
+		uint64_t size = 0;
+		dbg_parse_expr(&dest);
+		dbg_parse_expr(&from);
+		dbg_parse_expr(&size);
+
+		dbg_mem_copy(dest, size, from);
+	}
 	else {
 		dbg_die("I don't understand what you say bro");
 	}

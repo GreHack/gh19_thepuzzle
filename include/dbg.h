@@ -40,6 +40,7 @@ uint8_t *dbg_mem_read(uint64_t offset, int nb_bytes);
 uint8_t *dbg_mem_read_va(uint64_t addr, int nb_bytes);
 void dbg_mem_write(uint64_t offset, int nb_bytes, const uint8_t *data);
 void dbg_mem_write_va(uint64_t va, int nb_bytes, const uint8_t *data);
+void dbg_mem_copy(uint64_t dest, uint64_t size, uint64_t from);
 void dbg_mem_show(int offset, int len);
 void dbg_mem_xor(uint64_t offset, uint64_t val);
 

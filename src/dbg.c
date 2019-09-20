@@ -556,6 +556,14 @@ void dbg_mem_write_va(uint64_t va, int nb_bytes, const uint8_t *data)
 	dbg_mem_write((int) (va - g_baddr), nb_bytes, data);
 }
 
+void dbg_mem_copy(uint64_t dest, uint64_t size, uint64_t from)
+{
+	uint8_t *mem = dbg_mem_read(from, size);
+	// fprintf(stderr, "Copying %d bytes from here -> %lx\n", size, (uint64_t)*mem);
+	dbg_mem_write(dest, size, mem);
+	FREE(mem);
+}
+
 void dbg_mem_show(int offset, int len)
 {
 	uint8_t *mem = dbg_mem_read(offset, len);
