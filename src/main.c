@@ -168,9 +168,12 @@ void father(int child_pid, char *script_path, char *b64_key)
 			} else {
 				EXIT(1, "unhandled signal")
 			}
-		} else if (WIFCONTINUED(status)) {
+		}
+#ifdef DEBUG_DEBUGGER
+		else if (WIFCONTINUED(status)) {
 			fprintf(stderr, "Continued\n");
 		}
+#endif
 		FREE(regs);
 	}
 }
