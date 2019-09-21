@@ -45,7 +45,12 @@ def split_integer(num):
     """ Split an integer into additions, just to bother people """
     assert type(num) == int
 
-    nb_ops = randint(2, 6)
+    ops_charset = '-+-+*-+'
+    nb_ops = randint(1, 6)
+    if abs(num) > 2**50:
+        nb_ops = randint(1, 3)
+        ops_charset = '-+'
+
     ops = [choice('-+-+*') for _ in range(nb_ops)]
     nbs = [randint(0, abs(num//(nb_ops + 1))) for _ in range(nb_ops + 1)]
     res = ''.join([str(nbs[i]) + ops[i] for i in range(nb_ops)]) + str(nbs[nb_ops])
