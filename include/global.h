@@ -35,12 +35,12 @@ rc4_state_t *kd_rc4_state;
 /**** Here are some options to tweak for performances issues ****/
 
 // Max number of call to a breakpoint
-#define MAX_BP_CALL 20
+#define MAX_BP_CALL 33
 
 // Define maximum number of call to function unpacking
 #define MAX_UNPACK 3
 // Define maximum number of packed functions in the binary
-#define NFUNC 26
+#define NFUNC 56
 
 // If the child takes more than xx seconds, just kill it
 #define CHILD_MAX_SLEEP_TIME 15
