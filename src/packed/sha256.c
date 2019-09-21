@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include "sha256.h"
+#include "global.h"
 
 /****************************** MACROS ******************************/
 #define ROTLEFT(a,b) (((a) << (b)) | ((a) >> (32-(b))))
@@ -45,6 +46,7 @@ static const WORD k[64] = {
 /*********************** FUNCTION DEFINITIONS ***********************/
 void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
 {
+	TUPAC_BEG
 	WORD a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
 
 	for (i = 0, j = 0; i < 16; ++i, j += 4)
@@ -82,10 +84,13 @@ void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
 	ctx->state[5] += f;
 	ctx->state[6] += g;
 	ctx->state[7] += h;
+	TUPAC_END
+	return;
 }
 
 void sha256_init(SHA256_CTX *ctx)
 {
+	TUPAC_BEG
 	ctx->datalen = 0;
 	ctx->bitlen = 0;
 	ctx->state[0] = 0x6a09e667;
@@ -96,10 +101,13 @@ void sha256_init(SHA256_CTX *ctx)
 	ctx->state[5] = 0x9b05688c;
 	ctx->state[6] = 0x1f83d9ab;
 	ctx->state[7] = 0x5be0cd19;
+	TUPAC_END
+	return;
 }
 
 void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
 {
+	TUPAC_BEG
 	WORD i;
 
 	for (i = 0; i < len; ++i) {
@@ -111,10 +119,13 @@ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
 			ctx->datalen = 0;
 		}
 	}
+	TUPAC_END
+	return;
 }
 
 void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 {
+	TUPAC_BEG
 	WORD i;
 
 	i = ctx->datalen;
@@ -157,4 +168,6 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 		hash[i + 24] = (ctx->state[6] >> (24 - i * 8)) & 0x000000ff;
 		hash[i + 28] = (ctx->state[7] >> (24 - i * 8)) & 0x000000ff;
 	}
+	TUPAC_END
+	return;
 }

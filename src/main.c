@@ -12,6 +12,7 @@
 #endif
 #include "b64.h"
 
+#ifndef TEST_OBFUSCATION
 /*
  * These function try to hide the call to start_timer();
  * 2pac will add a breakpoint to tell the father to call start_timer()
@@ -29,6 +30,7 @@ static int hide_me()
 	int ret = check_user(user);
 	return ret;
 }
+#endif
 
 /*
  * This is the debuggee, our child process.

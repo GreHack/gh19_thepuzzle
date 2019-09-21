@@ -38,14 +38,16 @@ def gen_func_name(alt=''):
 
 
 def split_integer(num):
-    return num
+    #if num < 0:
+    #    return '0' + str(num)
+    #return num
     # TODO Make sure the number is not too big to avoid overflows in the C parser
     """ Split an integer into additions, just to bother people """
     assert type(num) == int
 
     nb_ops = randint(2, 6)
     ops = [choice('-+-+*') for _ in range(nb_ops)]
-    nbs = [randint(0, num//(nb_ops + 1)) for _ in range(nb_ops + 1)]
+    nbs = [randint(0, abs(num//(nb_ops + 1))) for _ in range(nb_ops + 1)]
     res = ''.join([str(nbs[i]) + ops[i] for i in range(nb_ops)]) + str(nbs[nb_ops])
     cmp = str(num - eval(res))
     if cmp[0] == '-':
@@ -192,7 +194,7 @@ def obfuscate_function(beg, end):
 
             fname = next(gen_func_name())
             death_func_name = next(gen_func_name())
-            cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, diff))
+            cmds.append('begin {}\na ${} {}\nend'.format(fname, reg, split_integer(diff)))
             original_opcode = int.from_bytes(opcode, byteorder='little')
             cmds.append('begin {}\nw {} {} {}\nend'.format(death_func_name, split_integer(offset), split_integer(original_opcode), split_integer(instr['size'])))
             cmds.append('bh {} {} {}'.format(split_integer(offset + instr['size']), fname, death_func_name))

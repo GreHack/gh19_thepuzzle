@@ -318,30 +318,45 @@ ocr_w_last_pix_ret:
 
 char ocr_revert_map(char c)
 {
+	TUPAC_BEG
+	char rev = 'x';
 	switch (c) {
 	case '#':
-		return '0';
+		rev = '0';
+		break;
 	case 'G':
-		return '1';
+		rev = '1';
+		break;
 	case 'r':
-		return '2';
+		rev = '2';
+		break;
 	case 'e':
-		return '3';
+		rev = '3';
+		break;
 	case 'H':
-		return '4';
+		rev = '4';
+		break;
 	case 'a':
-		return '5';
+		rev = '5';
+		break;
 	case 'c':
-		return '6';
+		rev = '6';
+		break;
 	case 'k':
-		return '7';
+		rev = '7';
+		break;
 	case '1':
-		return '8';
+		rev = '8';
+		break;
 	case '9':
-		return '9';
+		rev = '9';
+		break;
 	default:
-		return '?';
+		rev = '?';
+		break;
 	}
+	TUPAC_END
+	return rev;
 }
 
 #endif
@@ -442,10 +457,12 @@ char *ocr_read_flag(ocr_t *ocr, img_t *img)
 
 void ocr_dump_entry(entry_t *entry, FILE *file)
 {
+	TUPAC_BEG
 	/* write label */
 	fwrite(&(entry->label), sizeof(char), 1, file);  
 	/* write image */
 	img_dump(entry->img, file);
+	TUPAC_END
 	return;	
 }
 

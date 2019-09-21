@@ -8,13 +8,16 @@
 
 pix_t img_rgb_to_pix(pix_t *pix, unsigned char r, unsigned char g, unsigned char b)
 {
+	TUPAC_BEG
 	*pix = (255 - (MIN3(r, g, b) + MAX3(r, g, b)) / 2);
+	TUPAC_END
 	return *pix;
 }
 
 /* IMPORTANT: insert in queue such that we keep an ordered linked list */
 void img_add_white_pix(img_t *img, unsigned int h, unsigned int w)
 {
+	TUPAC_BEG
 	pix_list_t *wpix;
 	if (img->wpix == NULL) {
 		img->wpix = malloc(sizeof(pix_list_t));
@@ -32,31 +35,37 @@ void img_add_white_pix(img_t *img, unsigned int h, unsigned int w)
 	wpix->h = h;
 	wpix->w = w;
 	img->nb_wpix += 1;
+	TUPAC_END
 	return;
 }
 
 void img_set_pix(img_t *img, unsigned int h, unsigned int w, pix_t pix)
 {
+	TUPAC_BEG
 	img->pix[h][w] = pix;
 	if (pix == 0) {
 		/* Add a white pixel to the image */
 		img_add_white_pix(img, h, w);
 	}
+	TUPAC_END
 	return;
 }
 
 void img_set_pix_rgb(img_t *img, unsigned int h, unsigned int w, unsigned char r, unsigned char g, unsigned char b)
 {
+	TUPAC_BEG
 	pix_t pix = img_rgb_to_pix(&(img->pix[h][w]), r, g, b);
 	if (pix == 0) {
 		/* Add a white pixel to the image */
 		img_add_white_pix(img, h, w);
 	}
+	TUPAC_END
 	return;
 }
 
 void img_free_first_white_pix(img_t *img)
 {
+	TUPAC_BEG
 	pix_list_t *prev = img->wpix->prev;
 	pix_list_t *nxt = img->wpix->nxt;
 	/* avoid special case when only one entry left */
@@ -69,11 +78,13 @@ void img_free_first_white_pix(img_t *img)
 		FREE(img->wpix);
 	}
 	img->nb_wpix -= 1;
+	TUPAC_END
 	return;
 }
 
 void img_free(img_t *img)
 {
+	TUPAC_BEG
 	for (unsigned int h = 0; h < img->h; h++) {
 		FREE(img->pix[h]);
 	}
@@ -83,27 +94,32 @@ void img_free(img_t *img)
 	}
 	FREE(img->wpix);
 	FREE(img);
+	TUPAC_END
 	return;
 }
 
 pix_t **img_allocate_pixels(unsigned int h, unsigned int w)
 {
+	TUPAC_BEG
 	pix_t **pix = (pix_t **) malloc(sizeof(pix_t *) * h);
 	for (unsigned int i = 0; i < h; i++) {
 		pix[i] = (pix_t *) calloc(sizeof(pix_t), w);
 	}
+	TUPAC_END
 	return pix;
 }
 
 
 img_t *img_alloc(unsigned int h, unsigned int w)
 {
+	TUPAC_BEG
 	img_t *img = (img_t *) malloc(sizeof(img_t));
 	img->h = h;
 	img->w = w;
 	img->pix = img_allocate_pixels(h, w);
 	img->wpix = NULL;
 	img->nb_wpix = 0;
+	TUPAC_END
 	return img;
 }
 
@@ -219,6 +235,7 @@ void img_show_cli(img_t *img)
 /* CAUTION: returns square of dist */
 float img_dist(img_t *i1, img_t *i2)
 {
+	TUPAC_BEG
 	float dist = 0.0;
 	if (i1->h != i2->h || i1->w != i2->w) {
 		exit(1);
@@ -233,6 +250,7 @@ float img_dist(img_t *i1, img_t *i2)
 			}
 		}
 	}
+	TUPAC_END
 	return dist;
 }
 
@@ -253,6 +271,7 @@ void img_dump(img_t *img, FILE *file)
 
 img_t *img_load(FILE *file)
 {
+	TUPAC_BEG
 	img_t *img;
 	unsigned int h, w;
 	h = 0;
@@ -271,6 +290,7 @@ img_t *img_load(FILE *file)
 #ifdef DEBUG_IMG
 	img_show_cli(img);
 #endif
+	TUPAC_END
 	return img;
 }
 
