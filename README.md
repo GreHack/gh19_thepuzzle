@@ -2,10 +2,10 @@
 
 ## Clone data repository
 
-In `gh19_prechall` repository, do:
+In `gh19_thepuzzle` repository, do:
 
 ```
-git clone https://git.grehack.fr/_Frky/gh19_prechall_data.git data
+git clone https://github.com/GreHack/gh19_thepuzzle_data data
 
 ```
 
@@ -37,3 +37,4 @@ Type in, at the root directory:
 ```
 make clean && make
 ```
+
